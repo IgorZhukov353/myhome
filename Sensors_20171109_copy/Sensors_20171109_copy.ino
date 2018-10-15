@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  12-10-2018
+ Last changed:  15-10-2018
 */
-#define VERSION "Ver 1.2 of 17-06-2018 Igor Zhukov (C)"
+#define VERSION "Ver 1.5 of 15-10-2018 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -13,7 +13,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
-#include "RTClib.h"
+#include <RTClib.h>
 #include "activity.h"
 
 #include <OneWire.h>
@@ -54,20 +54,31 @@
 #define PIN24	24		// Реле перезагрузки INT1
 #define PIN25	25		// Реле вентиляторов вытяжки в подполе INT2
 #define PIN26	26		// Питание насоса в дренажном колодце
-#define PIN27	27    // Питание греющего кабеля в дренажном колодце
+#define PIN27	27    // Питание греющего кабеля в дренажном колодце & септике
 #define PIN28	28    // Датчик уровня в дренажном колодце
 #define PIN29	29    // Включение питания ESP8266 реле INT3
 
 #define PIN30	30    // Свободный вход реле INT4
 #define PIN31	31    // Реле питания греющего кабеля водяных труб в подполе INT1 (Реле №2 в ванной)
 #define PIN32	32    // Датчик температуры DS18B20 водяных труб в подполе (через макетную плату Белый)
-#define PIN33	33
-#define PIN34	34
+#define PIN33	33    // Наличие питания ~220 V
+#define PIN34	34    // Датчик температуры DS18B20 в септике
 #define PIN35	35
 #define PIN36	36
 #define PIN37	37
 #define PIN38	38
 #define PIN39	39
+
+#define PIN40 40
+#define PIN41 41
+#define PIN42 42
+#define PIN43 43
+#define PIN44 44
+#define PIN45 45
+#define PIN46 46
+#define PIN47 47
+#define PIN48 48
+#define PIN49 49
 
 #define PIN50	50	// MISO --> 12	для SD-карты
 #define PIN51	51	// MOSI	--> 11	для SD-карты
@@ -82,11 +93,10 @@ ESP_WIFI    esp; // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
-OneWire oneWire(PIN30); // этот будет 12
-OneWire oneWire2(PIN12); // этот будет 33
+OneWire oneWire[2] = {OneWire(PIN30),OneWire(PIN12)}; // этот будет 12 // этот будет 34
 
 // Pass our oneWire reference to Dallas Temperature. 
-DallasTemperature dallasTemp[2] = {DallasTemperature(&oneWire),DallasTemperature(&oneWire2)};
+DallasTemperature dallasTemp[2] = {DallasTemperature(&oneWire[0]),DallasTemperature(&oneWire[1])};
 
 DHT dht[3] = {DHT(PIN2, DHT22), DHT(PIN3, DHT22), DHT(PIN4, DHT22)};
 short prevTemp[5] = {-100,-100,-100,-100,-100}, prevHum[5];      // последние показания датчика температуры и влажности
