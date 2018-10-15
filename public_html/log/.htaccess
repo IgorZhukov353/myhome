@@ -1,0 +1,4 @@
+# Запрет для всех
+Deny from all
+# Разрешение для local (скриптов)
+Allow from local.
