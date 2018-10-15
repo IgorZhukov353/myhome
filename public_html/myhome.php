@@ -58,7 +58,7 @@ if($row[4] == 1)
 ?>
 </div>
 <div class=bblock2>
-<?php echo $row[2] ?>&#186; / <?php echo $row[3] ?>%
+<?php echo $row[2] ?>&#186; / <?php echo ($row[3] == 0)? "--": $row[3] . "%" ?>
 </div>
 </tr>
 <?php            }
