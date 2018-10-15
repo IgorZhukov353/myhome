@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  06-05-2018
+ Last changed:  16-06-2018
 */
 
 #include "Arduino.h"
@@ -62,8 +62,8 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
   String cmd1 = "AT+CIPSTART=\"TCP\",\"" + HOST_STR +"\",80";
   String request = (postBuf == "")? 
     "GET /"  + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\n" :
-//    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n\r\n" + postBuf + "\r\n";
-    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";
+//    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";
+    "GET /" + reqStr + "?" + postBuf + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n";
 
   short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
   String cmd2 = "AT+CIPSEND=" + String(requestLength);

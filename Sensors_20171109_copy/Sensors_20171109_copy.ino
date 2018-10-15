@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  3-06-2018
+ Last changed:  17-06-2018
 */
-#define VERSION "Ver 1.1 of 3-06-2018 Igor Zhukov (C)"
+#define VERSION "Ver 1.2 of 17-06-2018 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -102,6 +102,7 @@ short prevTemp[4] = {-100,-100,-100,-100}, prevHum[4];      // последни�
 #define ALARM_OFF 	0
 
 typedef struct { 
+byte id;
 byte value; 
 byte pre_value; 
 byte norm_state; 
@@ -118,13 +119,13 @@ struct DATA {
       byte ledState;
       byte tmp_value;
       alarm_info a[MAX_ALARMS] = {
-        {0,0, LOW, ALARM_ON, 6,0,false,false},  //pir1
-        {0,0, LOW, ALARM_ON, 5,0,false,false},  //pir2
-        {0,0, HIGH,ALARM_ON, 7,0,false,false},  //дверь № 1 
-        {0,0, HIGH,ALARM_ON, 8,0,false,false},  //дверь № 2 
-        {0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания (пока отключен)
-        {0,0, LOW ,ALARM_ON, 9,0,false,false},  //pir3
-        {0,0, LOW ,ALARM_ON, 28,0,false,true}   //уровень в дрен колодце
+        {1,0,0, LOW, ALARM_OFF, 6,0,false,false},  //pir1
+        {2,0,0, LOW, ALARM_OFF, 5,0,false,false},  //pir2
+        {3,0,0, HIGH,ALARM_ON, 7,0,false,false},  //дверь № 1 
+        {4,0,0, HIGH,ALARM_ON, 8,0,false,false},  //дверь № 2 
+        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания (пока отключен)
+        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false},  //pir3
+        {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true}   //уровень в дрен колодце
         };
     };
   } d;
@@ -193,7 +194,7 @@ void setup()
    Wire.begin();
    RTC.begin();
     
-   d.sysState = 1;
+   d.sysState = 0;
    d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
    pinMode(state_led_pin, OUTPUT);
    digitalWrite(state_led_pin, d.ledState);
@@ -205,8 +206,6 @@ void setup()
    
    esp.addEvent2Buffer(1,String(millis()));
    esp.sendBuffer2Site();
-   
-   //esp.send2site("send_event.php?id=1&text=" + String(millis())); 
 }
 
 //------------------------------------------------------------------------
@@ -218,20 +217,17 @@ void sens_setup()
     if(d.a[i].analog != true){
       pinMode(d.a[i].pin, INPUT); 
 	    digitalWrite(d.a[i].pin, d.a[i].norm_state); // подключение внутр резистора
-    }
+      }
     d.a[i].pre_value = d.a[i].norm_state;
     d.a[i].value = d.a[i].norm_state;
+    trace("Sens init! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value)+ " v2=" + String(d.a[i].pre_value)); 
     }
 }
 	
 //------------------------------------------------------------------------
 void sens_check()
 {
-     if(!d.sysState)  // проверка датчиков отключена
-      return;
-      
      unsigned long currentMillis = millis();
-	   byte changed = 0;
 	   
 	   for(byte i=0; i<MAX_ALARMS; i++){
 		  if(d.a[i].on == ALARM_OFF || (!d.sysState && !d.a[i].check_for_any_status)) // не активен или проверка датчиков отключена и датчик можно не проверять
@@ -245,32 +241,33 @@ void sens_check()
        else
         d.tmp_value = 0; 
       }
+
 		 if( d.tmp_value != d.a[i].pre_value){
 			  d.a[i].pre_value = d.tmp_value;
 			  d.a[i].change_time = currentMillis;
+        //trace("Sens check! id=" + String(d.a[i].id) + " v=" + String(d.a[i].pre_value));
 			}
 		 
 		 if( d.a[i].change_time > 0 && (currentMillis - d.a[i].change_time) > SENS_TIMEOUT){
 			d.a[i].value = d.a[i].pre_value;
-			changed++;    
 			d.a[i].change_time = 0;
-      esp.addSens2Buffer(i + 1, d.a[i].value);
-      trace("Sens changed! id=" + String(i+1) + " v=" + String(d.a[i].value));
+      esp.addSens2Buffer(d.a[i].id, d.a[i].value);
+      trace("Sens changed! id=" + String(d.a[i].id) + " v=" + String(d.a[i].value));
 			}
 		}
 	  
 	  short new_ledInterval = 1000;
 	 
 	  for(byte i=0; i<MAX_ALARMS; i++){
-		   if(d.a[i].on == 0)
-			continue; 
+		   if(d.a[i].on == ALARM_OFF || (!d.sysState && !d.a[i].check_for_any_status)) // не активен или проверка датчиков отключена и датчик можно не проверять
+        continue;
 		   if(d.a[i].change_time != 0){
-			new_ledInterval = state_led_blink.timeout;
-			break;  
-		   }
+			  new_ledInterval = state_led_blink.timeout;
+			  break;  
+		    }
 		   if( d.a[i].value != d.a[i].norm_state){
-			new_ledInterval = 100;
-			break;
+			  new_ledInterval = 100;
+			  break;
 		   }
 		}
 	  if(state_led_blink.timeout != new_ledInterval){
@@ -297,12 +294,15 @@ void temp_check()
 {
     // считывание температуры или влажности занимает примерно 250 мс!
     // считанные показания могут отличаться от актуальных примерно на 2 секунды (это очень медленный датчик)
-
-    String reqStr;
-    short h,t,changed=0;
+    
+    short h,t;
     for(short i=0; i<4; i++){
       if(i != 3){
         h = round(dht[i].readHumidity());
+        if(dht[i].state == false){
+          trace("Ошибка чтения температуры для id=" + String(i+1) + "!");
+          continue;
+        }
         t = round(dht[i].readTemperature());
       }
       else {
@@ -575,7 +575,7 @@ void sendBuffer2Site_check()
 //------------------------------------------------------------------------
 void loop() 
 {
- //return;
+// return;
   
  esp.checkIdle();
  sendError.checkActivated();

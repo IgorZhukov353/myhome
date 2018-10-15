@@ -23,6 +23,7 @@ float DHT::readTemperature(void) {
   float f;
 
   if (read()) {
+    state = true;
     switch (_type) {
     case DHT11:
       f = data[2];
@@ -39,13 +40,15 @@ float DHT::readTemperature(void) {
       return f;
     }
   }
-  Serial.print("Read fail");
+  //Serial.print(" hum Read fail");
+  state=false;
   return NAN;
 }
 
 float DHT::readHumidity(void) {
   float f;
   if (read()) {
+    state = true;
     switch (_type) {
     case DHT11:
       f = data[0];
@@ -59,7 +62,8 @@ float DHT::readHumidity(void) {
       return f;
     }
   }
-  Serial.print("Read fail");
+  //Serial.print("temp Read fail");
+  state=false;
   return NAN;
 }
 
