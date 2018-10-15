@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  17-06-2018
+ Last changed:  12-10-2018
 */
 #define VERSION "Ver 1.2 of 17-06-2018 Igor Zhukov (C)"
 
@@ -81,13 +81,15 @@ RTC_DS1307  RTC; // часы реального времени
 ESP_WIFI    esp; // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-OneWire oneWire(PIN12);
+
+OneWire oneWire(PIN30); // этот будет 12
+OneWire oneWire2(PIN12); // этот будет 33
 
 // Pass our oneWire reference to Dallas Temperature. 
-DallasTemperature dallasTemp(&oneWire);
+DallasTemperature dallasTemp[2] = {DallasTemperature(&oneWire),DallasTemperature(&oneWire2)};
 
 DHT dht[3] = {DHT(PIN2, DHT22), DHT(PIN3, DHT22), DHT(PIN4, DHT22)};
-short prevTemp[4] = {-100,-100,-100,-100}, prevHum[4];      // последние показания датчика температуры и влажности
+short prevTemp[5] = {-100,-100,-100,-100,-100}, prevHum[5];      // последние показания датчика температуры и влажности
 
 #define state_led_pin 		  PIN13
 #define SENS_CHECK_TIMEOUT 	100
@@ -119,12 +121,12 @@ struct DATA {
       byte ledState;
       byte tmp_value;
       alarm_info a[MAX_ALARMS] = {
-        {1,0,0, LOW, ALARM_OFF, 6,0,false,false},  //pir1
-        {2,0,0, LOW, ALARM_OFF, 5,0,false,false},  //pir2
+        {1,0,0, LOW, ALARM_ON, 6,0,false,false},  //pir1
+        {2,0,0, LOW, ALARM_ON, 5,0,false,false},  //pir2
         {3,0,0, HIGH,ALARM_ON, 7,0,false,false},  //дверь № 1 
         {4,0,0, HIGH,ALARM_ON, 8,0,false,false},  //дверь № 2 
         {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания (пока отключен)
-        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false},  //pir3
+        {6,0,0, LOW ,ALARM_ON, 9,0,false,false},  //pir3
         {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true}   //уровень в дрен колодце
         };
     };
@@ -200,7 +202,8 @@ void setup()
    digitalWrite(state_led_pin, d.ledState);
     
    sens_setup();
-   dallasTemp.begin();
+   dallasTemp[0].begin();
+   dallasTemp[1].begin();
    
    trace(VERSION);
    
@@ -296,8 +299,8 @@ void temp_check()
     // считанные показания могут отличаться от актуальных примерно на 2 секунды (это очень медленный датчик)
     
     short h,t;
-    for(short i=0; i<4; i++){
-      if(i != 3){
+    for(short i=0; i<5; i++){
+      if(i < 3){
         h = round(dht[i].readHumidity());
         if(dht[i].state == false){
           trace("Ошибка чтения температуры для id=" + String(i+1) + "!");
@@ -307,10 +310,17 @@ void temp_check()
       }
       else {
         h = 0;
-        dallasTemp.requestTemperatures(); // Send the command to get temperatures
-        t = dallasTemp.getTempCByIndex(0);
-        if( t < -50)
-          continue;
+        int ind = i - 3;
+        dallasTemp[ind].requestTemperaturesByIndex(0); // Send the command to get temperatures
+        for(short ii=0; ii < 10; ii++){
+          float ft = dallasTemp[ind].getTempCByIndex(0);
+          
+          if( ft != -127){
+            t = round(ft);
+            break;
+          }
+          delay(50);  
+        }
       }
       trace("Темп и влажн. id=" + String(i+1) + " t=" + String(t) + " h=" + String(h));
       
@@ -620,6 +630,7 @@ void loop()
 //------------------------------------------------------------------------
 void esp_power_switch(bool p)
 {
+  return;
   if(p== true){
     pinMode(PIN29, OUTPUT);
     digitalWrite(PIN29, LOW);
