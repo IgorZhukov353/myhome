@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  15-10-2018
+ Last changed:  17-10-2018
 */
 #define VERSION "Ver 1.5 of 15-10-2018 Igor Zhukov (C)"
 
@@ -157,7 +157,7 @@ class Boiler : public DeviceControl {
 public:  
 short TargetTemp;                 // целевая температура
 bool  CurrentMode;                // текущий режим ардуино-термостата
-} boiler;  
+} boiler, heating_cable;  
 
 /*--------------------------------------------------------------------------------
 bool  boilerControlOn = false;          // признак управления газовым котлом (переключаем на ардуино релейную линию с штатного термостата) // 17-12-2017
@@ -184,6 +184,7 @@ Activity readCommand(COMMAND_TIMEOUT,command_check);
 Activity remoteTermostat(BOILER_TIMEOUT,remoteTermostat_check);
 Activity sendError(COMMAND_TIMEOUT,sendError_check); 
 Activity sendBuffer2Site(1000,sendBuffer2Site_check); // передача буфера информации раз в секунду (если есть что)
+
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,
 // когда компилируется скетч
@@ -301,6 +302,20 @@ short Thermister(byte analogPin) {
   trace("Thermister.T=" + String(t) + " " +String(Temp));
   return t;
 }
+//------------------------------------------------------------------------
+float readDallasTemp(DallasTemperature *d)
+{
+ float ft;
+ d->requestTemperaturesByIndex(0); // Send the command to get temperatures
+ for(short ii=0; ii < 10; ii++){
+    ft = d->getTempCByIndex(0);
+    if( ft != -127){
+       break;
+       }
+    delay(50);  
+    }
+ return ft;
+}
 
 //------------------------------------------------------------------------
 void temp_check() 
@@ -321,16 +336,7 @@ void temp_check()
       else {
         h = 0;
         int ind = i - 3;
-        dallasTemp[ind].requestTemperaturesByIndex(0); // Send the command to get temperatures
-        for(short ii=0; ii < 10; ii++){
-          float ft = dallasTemp[ind].getTempCByIndex(0);
-          
-          if( ft != -127){
-            t = round(ft);
-            break;
-          }
-          delay(50);  
-        }
+        t = round(readDallasTemp(&dallasTemp[ind]));
       }
       trace("Темп и влажн. id=" + String(i+1) + " t=" + String(t) + " h=" + String(h));
       
@@ -496,6 +502,29 @@ void responseProcessing(String response)
           digitalWrite(PIN22, LOW);
           digitalWrite(PIN23, HIGH);
         }
+      else  
+      if(cmd == "heating_cable"){
+          trace( "heating cable init." );
+          ind2 += 1;
+          ind = response.indexOf(";", ind2);
+          heating_cable.TargetTemp = atoi(response.substring(ind2, ind).c_str());  
+          if( !heating_cable.TargetTemp){
+            trace( "Error target temp reading!");  
+            return;
+            }
+          ind += 1;
+          ind2 = response.indexOf(";", ind);
+          heating_cable.ControlUntilTime = atoi(response.substring(ind, ind2).c_str());
+          if( !heating_cable.ControlUntilTime){
+            trace( "Error period reading!");  
+            return;
+            }
+          heating_cable.ControlUntilTime = millis() + boiler.ControlUntilTime * 60000 * 60;
+          heating_cable.ControlOn = true;
+          heating_cable.CurrentMode = false;
+          pinMode(PIN27, OUTPUT);
+          digitalWrite(PIN27, LOW);
+        }  
     }
   }
 }
@@ -570,6 +599,36 @@ void remoteTermostat_check()
         }
       }
     }
+
+  if(heating_cable.ControlOn){
+      if(millis() > heating_cable.ControlUntilTime){ // закончен период работы ардуино-термостата греющего кабеля
+        trace( "heating_cable termostat stop." );
+        heating_cable.ControlOn = false;
+        digitalWrite(PIN27, HIGH);
+        pinMode(PIN27, INPUT);
+        return;      
+      }
+
+      double t = readDallasTemp(&dallasTemp[0]);
+      unsigned long ms = heating_cable.ControlUntilTime - millis();
+      unsigned int h = (ms / (60*60000));
+      unsigned int m = (ms % (60*60000)) / 60000;
+      trace( "Target=" + String(heating_cable.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m"); 
+      if( t < boiler.TargetTemp){
+        if(!heating_cable.CurrentMode){
+          trace( "Heat on."); 
+          heating_cable.CurrentMode = true;  
+          digitalWrite(PIN27, LOW);        
+        }
+      }
+      else{
+        if(heating_cable.CurrentMode){
+          trace( "Heat off."); 
+          heating_cable.CurrentMode = false;  
+          digitalWrite(PIN27, HIGH);        
+        }
+      }
+    }
 }
 
 //------------------------------------------------------------------------
@@ -605,7 +664,7 @@ void loop()
  tempHum.checkActivated();
  readCommand.checkActivated();
  remoteTermostat.checkActivated();
-
+ 
  if( (millis() % WATCHDOG_TIMEOUT) < 10000){ // регулярная отправка дежурного сообщения
     if(!watchDogOK_Sended2BD){
       watchDogOK_Sended2BD = true;
