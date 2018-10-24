@@ -23,8 +23,8 @@ str=[{"type":"S","id":1,"v":1},{"type":"T","id":1,"temp":12,"hum":80},{"type":"E
 
 */     
   
-const String WSSID = "TP-LINK_B3D2";    // Нахим
-//const String WSSID = "TP-LINK_FA82EC";    // Дом
+//const String WSSID = "TP-LINK_B3D2";    // Нахим
+const String WSSID = "TP-LINK_FA82EC";    // Дом
 const String WPASS  = "tgbvgy789";
 //const String HOST_STR = "igorzhukov353.000webhostapp.com";
 //const String HOST_STR = "24683.databor.pw";
@@ -62,8 +62,8 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
   String cmd1 = "AT+CIPSTART=\"TCP\",\"" + HOST_STR +"\",80";
   String request = (postBuf == "")? 
     "GET /"  + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\n" :
-//    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";
-    "GET /" + reqStr + "?" + postBuf + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n";
+    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";
+//    "GET /" + reqStr + "?" + postBuf + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n";
 
   short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
   String cmd2 = "AT+CIPSEND=" + String(requestLength);
@@ -202,6 +202,7 @@ void ESP_WIFI::addInfo2Buffer(String str)
     buffer = str; 
   else 
     buffer += "," + str;
+  //sendBuffer2Site();   
 }
 
 //------------------------------------------------------------------------
@@ -232,5 +233,3 @@ void ESP_WIFI::sendBuffer2Site()
     
   buffer = "";  
 }
-
-

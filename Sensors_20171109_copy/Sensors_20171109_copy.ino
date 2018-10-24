@@ -93,7 +93,7 @@ ESP_WIFI    esp; // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
-OneWire oneWire[2] = {OneWire(PIN30),OneWire(PIN12)}; // этот будет 12 // этот будет 34
+OneWire oneWire[2] = {OneWire(PIN12),OneWire(PIN32)}; // этот будет 12 // этот будет 34
 
 // Pass our oneWire reference to Dallas Temperature. 
 DallasTemperature dallasTemp[2] = {DallasTemperature(&oneWire[0]),DallasTemperature(&oneWire[1])};
@@ -207,7 +207,7 @@ void setup()
    Wire.begin();
    RTC.begin();
     
-   d.sysState = 0;
+   d.sysState = 1;
    d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
    pinMode(state_led_pin, OUTPUT);
    digitalWrite(state_led_pin, d.ledState);
@@ -699,7 +699,7 @@ void loop()
 //------------------------------------------------------------------------
 void esp_power_switch(bool p)
 {
-  return;
+  //return;
   if(p== true){
     pinMode(PIN29, OUTPUT);
     digitalWrite(PIN29, LOW);
