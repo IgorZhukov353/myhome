@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  17-10-2018
+ Last changed:  25-10-2018
 */
 #define VERSION "Ver 1.5 of 15-10-2018 Igor Zhukov (C)"
 
@@ -207,7 +207,7 @@ void setup()
    Wire.begin();
    RTC.begin();
     
-   d.sysState = 1;
+   d.sysState = 0;
    d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
    pinMode(state_led_pin, OUTPUT);
    digitalWrite(state_led_pin, d.ledState);
@@ -439,6 +439,11 @@ void responseProcessing(String response)
        if(boiler.ControlOn)
           boiler.ControlUntilTime = 0;
       }
+      else
+      if(cmd == "heating_cable_stop"){
+       if(heating_cable.ControlOn)
+          heating_cable.ControlUntilTime = 0;
+      }
       if(cmd == "fan_stop"){
        if(fan.ControlOn)
           fan.ControlUntilTime = 0;
@@ -519,7 +524,7 @@ void responseProcessing(String response)
             trace( "Error period reading!");  
             return;
             }
-          heating_cable.ControlUntilTime = millis() + boiler.ControlUntilTime * 60000 * 60;
+          heating_cable.ControlUntilTime = millis() + heating_cable.ControlUntilTime * 60000 * 60;
           heating_cable.ControlOn = true;
           heating_cable.CurrentMode = false;
           pinMode(PIN27, OUTPUT);
