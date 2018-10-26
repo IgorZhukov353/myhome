@@ -675,9 +675,11 @@ void loop()
       watchDogOK_Sended2BD = true;
 
       esp.checkInitialized();
-      byte ind, a[6] = {9,10,11,12,14,16};
+      const int CHECKED_IP = 7;
+      byte ind, a[CHECKED_IP] = {9,10,11,12,14,16,17};
+      
       String dopInfo = "";
-      for(ind = 0; ind < 6; ind++){ // пинги видеорегистратора и камер
+      for(ind = 0; ind < CHECKED_IP; ind++){ // пинги видеорегистратора и камер
         String str = (esp.espSendCommand( "AT+PING=\"192.168.0." + String(a[ind]) + "\"" , (char*)"OK" , 5000 ))? "ok":"failed";
         dopInfo += String(a[ind]) + ":" + str + ";"; // json экранирование ":" -> \\u003A
       }
@@ -689,9 +691,7 @@ void loop()
 
       //esp.send2site("send_mail.php"); /*izh 17-03-2018 раз в час проверить срабатывание датчиков и температуры */
 
-      esp.addEvent2Buffer(3, "days=" + String(d) + "hours="  + String(h) + "(" + dopInfo + String(t) + ")");
-      //esp.sendBuffer2Site();
-      //esp.send2site("send_event.php?id=3&text=days=" + String(d) + "hours=" + String(h)+ "(" + dopInfo + String(t) + ")"); 
+      esp.addEvent2Buffer(3, "days=" + String(d) + "hours="  + String(h) + "(" + dopInfo + ")");
       traceInit = false;
     }
  }

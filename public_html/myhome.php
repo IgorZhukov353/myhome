@@ -26,6 +26,7 @@ echo $now->format("d.m.Y H:i:s");
 <td style="width: 80px; text-align: center;">Дата</td>
 <td style="width: 130px; text-align: center;">Место</td>
 <td style="width: 140px; text-align: center;">Темп/Влажн</td>
+<td style="width: 140px; text-align: center;">Мin/Max/Avg</td>
     </tr>
   </thead>
 <tbody>
@@ -43,7 +44,7 @@ if (mysqli_connect_errno()) {
 try {  
 	mysqli_set_charset($link, 'utf8');
 	$result = mysqli_query($link, "SET time_zone = '+03:00'");
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%T') as Date,Name,Temp_Value,Humidity_Value,Alarm FROM V_LAST_TEMP_HUM");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%T') as Date,Name,Temp_Value,Humidity_Value,Alarm, min_temp, max_temp, avg_temp FROM V_LAST_TEMP_HUM");
         while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
 ?>
 <tr>
@@ -59,7 +60,11 @@ if($row[4] == 1)
 </div>
 <div class=bblock2>
 <?php echo $row[2] ?>&#186; / <?php echo ($row[3] == 0)? "--": $row[3] . "%" ?>
-</div>
+</div></td>
+
+<td style="width: 140px; text-align: center;">
+<?php echo $row[5] ?>&#186; / <?php echo $row[6] ?>&#186 / <?php echo $row[7] ?>&#186
+</td>
 </tr>
 <?php            }
         mysqli_free_result($result);
@@ -146,7 +151,7 @@ echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
 
 <tbody>
 <?php
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Completed_Date,'%d.%m.%Y %T') as Completed_Date, Code, Command_id FROM Command order by cast(Completed_Date as datetime) desc limit 15");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Completed_Date,'%d.%m.%Y %T') as Completed_Date, Code, Command_id FROM Command order by cast(Completed_Date as datetime) desc limit 20");
         while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
 ?>
 <tr>
