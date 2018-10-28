@@ -131,12 +131,12 @@ struct DATA {
       byte ledState;
       byte tmp_value;
       alarm_info a[MAX_ALARMS] = {
-        {1,0,0, LOW, ALARM_ON, 6,0,false,false},  //pir1
-        {2,0,0, LOW, ALARM_ON, 5,0,false,false},  //pir2
+        {1,0,0, LOW, ALARM_OFF, 6,0,false,false},  //pir1
+        {2,0,0, LOW, ALARM_OFF, 5,0,false,false},  //pir2
         {3,0,0, HIGH,ALARM_ON, 7,0,false,false},  //дверь № 1 
         {4,0,0, HIGH,ALARM_ON, 8,0,false,false},  //дверь № 2 
         {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания (пока отключен)
-        {6,0,0, LOW ,ALARM_ON, 9,0,false,false},  //pir3
+        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false},  //pir3
         {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true}   //уровень в дрен колодце
         };
     };
@@ -209,7 +209,7 @@ void setup()
    Wire.begin();
    RTC.begin();
     
-   d.sysState = 0;
+   d.sysState = 1;
    d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
    pinMode(state_led_pin, OUTPUT);
    digitalWrite(state_led_pin, d.ledState);
