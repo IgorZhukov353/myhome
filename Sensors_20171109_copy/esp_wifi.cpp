@@ -31,9 +31,9 @@ const String WPASS  = "tgbvgy789";
 //const String HOST_STR = "z916629e.beget.tech"; // 16-03-2018 очередной бесплатный хостинг
 //const String HOST_STR = "santalov.ru";
 //const String HOST_STR = "f0195241.xsph.ru";
-const String HOST_STR = "igorzhukov353.h1n.ru"; 
+const char *HOST_STR = "igorzhukov353.h1n.ru"; 
 
-char *ok_str = (char*)"OK";
+const char *ok_str = (char*)"OK";
 
 #define ESP_Serial Serial1 // для МЕГИ
 
@@ -59,10 +59,10 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
 			return false;
 		}
 
-  String cmd1 = "AT+CIPSTART=\"TCP\",\"" + HOST_STR +"\",80";
+  String cmd1 = "AT+CIPSTART=\"TCP\",\"" + String(HOST_STR) +"\",80";
   String request = (postBuf == "")? 
-    "GET /"  + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\n" :
-    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";
+    "GET /"  + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\n" :
+    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";
 //    "GET /" + reqStr + "?" + postBuf + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n";
 
   short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().

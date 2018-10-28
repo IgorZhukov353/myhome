@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  25-10-2018
+ Last changed:  26-10-2018
 */
-#define VERSION "Ver 1.5 of 15-10-2018 Igor Zhukov (C)"
+#define VERSION "Ver 1.5 of 26-10-2018 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -144,6 +144,8 @@ struct DATA {
 
 bool traceInit = false;						      // признак инициализации трассировки
 bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
+bool powerAC_off = 0;                   // признак отсутствия внешнего напряжения 220В
+extern char *HOST_STR;
 //--------------------------------------------------------------------------------
 class DeviceControl {
 public:
@@ -217,8 +219,17 @@ void setup()
    dallasTemp[1].begin();
    
    trace(VERSION);
-   
-   esp.addEvent2Buffer(1,String(millis()));
+
+   esp.checkInitialized();
+   unsigned long tstart, tnow, timeout = 1000 * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
+   tnow, tstart = millis();
+   while(tnow < tstart + timeout ){
+    if(esp.espSendCommand("AT+PING=\""+ String(HOST_STR) +"\"" , (char*)"OK" , 5000 ))
+      break;
+    tnow = millis();
+    }
+     
+   esp.addEvent2Buffer(1,"");
    esp.sendBuffer2Site();
 }
 
@@ -267,6 +278,10 @@ void sens_check()
 			d.a[i].change_time = 0;
       esp.addSens2Buffer(d.a[i].id, d.a[i].value);
       trace("Sens changed! id=" + String(d.a[i].id) + " v=" + String(d.a[i].value));
+      
+      if(d.a[i].id == 5){ /* izh 28-10-2018 */
+        powerAC_off = !d.a[i].value;  
+        }
 			}
 		}
 	  
@@ -414,13 +429,16 @@ void trace(String msg)
 //------------------------------------------------------------------------
 void responseProcessing(String response)
 {
+  String str;
   short ind = response.indexOf("command="); // признак команды
   if(ind >= 0){
     ind += 8; // длина признака команды
     short ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
     if(ind2 >= 0){
       String cmd = response.substring(ind, ind2);
-      trace( "Command processing=" + cmd);  
+      str = "Command processing=" + cmd;  
+      trace( str); 
+      esp.addEvent2Buffer(7, str);
       
       if(cmd == "reboot")
         remoteRebootExecute();
@@ -484,7 +502,10 @@ void responseProcessing(String response)
       }
       else  
       if(cmd == "boiler"){
-          trace( "boiler termostat init." );
+          str = "boiler: termostat init.";
+          trace( str); 
+          esp.addEvent2Buffer(8, str);
+          
           ind2 += 1;
           ind = response.indexOf(";", ind2);
           boiler.TargetTemp = atoi(response.substring(ind2, ind).c_str());  
@@ -509,7 +530,9 @@ void responseProcessing(String response)
         }
       else  
       if(cmd == "heating_cable"){
-          trace( "heating cable init." );
+          str = "heating_cable: termostat init.";
+          trace( str); 
+          esp.addEvent2Buffer(8, str);
           ind2 += 1;
           ind = response.indexOf(";", ind2);
           heating_cable.TargetTemp = atoi(response.substring(ind2, ind).c_str());  
@@ -553,9 +576,17 @@ void remoteRebootExecute()
 // функция термостата газового котла и не только
 void remoteTermostat_check() 
 {
+  String str;
+  if(powerAC_off){
+      esp.addEvent2Buffer(9,"");
+  }
+   
   if(fan.ControlOn){
       if(millis() > fan.ControlUntilTime){ // закончен период работы вентилятора
-        trace( "fan stop." );
+        str = "fan: stop.";
+        trace( str); 
+        esp.addEvent2Buffer(8, str);
+
         fan.ControlOn = false;
         digitalWrite(PIN25, HIGH);
         pinMode(PIN25, INPUT);
@@ -565,7 +596,10 @@ void remoteTermostat_check()
 
   if(pump.ControlOn){
       if(millis() > pump.ControlUntilTime){ // закончен период работы насоса
-        trace( "pump stop." );
+        str = "pump: stop.";
+        trace( str); 
+        esp.addEvent2Buffer(8, str);
+
         pump.ControlOn = false;
         digitalWrite(PIN26, HIGH);
         pinMode(PIN26, INPUT);
@@ -575,7 +609,10 @@ void remoteTermostat_check()
        
   if(boiler.ControlOn){
       if(millis() > boiler.ControlUntilTime){ // закончен период работы ардуино-термостата, переходим на штатный
-        trace( "boiler termostat stop." );
+        str = "boiler: termostat stop.";
+        trace( str); 
+        esp.addEvent2Buffer(8, str);
+
         boiler.ControlOn = false;
         digitalWrite(PIN22, HIGH);
         digitalWrite(PIN23, HIGH);
@@ -588,26 +625,32 @@ void remoteTermostat_check()
       unsigned long ms = boiler.ControlUntilTime - millis();
       unsigned int h = (ms / (60*60000));
       unsigned int m = (ms % (60*60000)) / 60000;
-      trace( "Target=" + String(boiler.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m"); 
+      str = "boiler: Target=" + String(heating_cable.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
       if( t < boiler.TargetTemp){
         if(!boiler.CurrentMode){
-          trace( "Heat on."); 
+          str += " state: Heat on."; 
           boiler.CurrentMode = true;  
           digitalWrite(PIN23, LOW);        
         }
       }
       else{
         if(boiler.CurrentMode){
-          trace( "Heat off."); 
+          str += " state: Heat off."; 
           boiler.CurrentMode = false;  
           digitalWrite(PIN23, HIGH);        
         }
       }
+      
+      trace( str); 
+      esp.addEvent2Buffer(8, str);
     }
 
   if(heating_cable.ControlOn){
       if(millis() > heating_cable.ControlUntilTime){ // закончен период работы ардуино-термостата греющего кабеля
-        trace( "heating_cable termostat stop." );
+        str = "heating_cable: termostat stop.";
+        trace( str); 
+        esp.addEvent2Buffer(8, str);
+        
         heating_cable.ControlOn = false;
         digitalWrite(PIN27, HIGH);
         pinMode(PIN27, INPUT);
@@ -618,21 +661,24 @@ void remoteTermostat_check()
       unsigned long ms = heating_cable.ControlUntilTime - millis();
       unsigned int h = (ms / (60*60000));
       unsigned int m = (ms % (60*60000)) / 60000;
-      trace( "Target=" + String(heating_cable.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m"); 
+      str = "heating_cable: Target=" + String(heating_cable.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
       if( t < boiler.TargetTemp){
         if(!heating_cable.CurrentMode){
-          trace( "Heat on."); 
+          str += " state: Heat on."; 
           heating_cable.CurrentMode = true;  
           digitalWrite(PIN27, LOW);        
         }
       }
       else{
         if(heating_cable.CurrentMode){
-          trace( "Heat off."); 
+          str += " state: Heat off."; 
           heating_cable.CurrentMode = false;  
           digitalWrite(PIN27, HIGH);        
         }
       }
+      
+      trace( str); 
+      esp.addEvent2Buffer(8, str);
     }
 }
 
@@ -669,8 +715,9 @@ void loop()
  tempHum.checkActivated();
  readCommand.checkActivated();
  remoteTermostat.checkActivated();
- 
- if( (millis() % WATCHDOG_TIMEOUT) < 10000){ // регулярная отправка дежурного сообщения
+
+ unsigned long t = millis();
+ if( (t % WATCHDOG_TIMEOUT) < 10000){ // регулярная отправка дежурного сообщения ( раз в час )
     if(!watchDogOK_Sended2BD){
       watchDogOK_Sended2BD = true;
 
@@ -684,7 +731,6 @@ void loop()
         dopInfo += String(a[ind]) + ":" + str + ";"; // json экранирование ":" -> \\u003A
       }
 
-      unsigned long t = millis();
       unsigned int d = t/(24*60*60000);
       unsigned int h = (t%(24*60*60000)) / (60*60000);
       trace( "Watchdog=" + String(t) + dopInfo);
