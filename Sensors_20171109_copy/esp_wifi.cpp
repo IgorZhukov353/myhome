@@ -99,11 +99,15 @@ delay(200);
 ESP_Serial.begin(115200); // default baud rate for ESP8266
 //ESP_Serial.begin(9600);
 delay(100);
-r = espSendCommand( "AT" , ok_str , 5000 );
-ESP_Serial.println("ATE0");
-ESP_Serial.println("AT+CIOBAUD=115200");
+//ESP_Serial.println("AT+CIOBAUD=115200");
+
+//r = espSendCommand( "AT+CIOBAUD=115200" , (char*) "ready" , 5000 );
+//r = espSendCommand( "AT" , ok_str , 5000 );
+r = espSendCommand( "ATE0" , ok_str , 5000 );
+//ESP_Serial.println("ATE0");
+
 //ESP_Serial.println("AT+CIOBAUD=19200");
-delay(100);
+//delay(100);
 //ESP_Serial.begin(19200);
 //ESP_Serial.begin(115200); 
 

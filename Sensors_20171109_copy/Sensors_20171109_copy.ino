@@ -551,7 +551,7 @@ void responseProcessing(String response)
           heating_cable.ControlOn = true;
           heating_cable.CurrentMode = false;
           pinMode(PIN27, OUTPUT);
-          digitalWrite(PIN27, LOW);
+          digitalWrite(PIN27, HIGH); // пока выключено
         }  
     }
   }
@@ -662,7 +662,7 @@ void remoteTermostat_check()
       unsigned int h = (ms / (60*60000));
       unsigned int m = (ms % (60*60000)) / 60000;
       str = "heating_cable: Target=" + String(heating_cable.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
-      if( t < boiler.TargetTemp){
+      if( t < heating_cable.TargetTemp){
         if(!heating_cable.CurrentMode){
           str += " state: Heat on."; 
           heating_cable.CurrentMode = true;  
