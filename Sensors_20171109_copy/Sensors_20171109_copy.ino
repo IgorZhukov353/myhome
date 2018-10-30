@@ -145,7 +145,7 @@ struct DATA {
 bool traceInit = false;						      // признак инициализации трассировки
 bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
 bool powerAC_off = 0;                   // признак отсутствия внешнего напряжения 220В
-extern char *HOST_STR;
+
 //--------------------------------------------------------------------------------
 class DeviceControl {
 public:
@@ -219,15 +219,7 @@ void setup()
    dallasTemp[1].begin();
    
    trace(VERSION);
-
-   esp.checkInitialized();
-   unsigned long tstart, tnow, timeout = 1000 * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
-   tnow, tstart = millis();
-   while(tnow < tstart + timeout ){
-    if(esp.espSendCommand("AT+PING=\""+ String(HOST_STR) +"\"" , (char*)"OK" , 5000 ))
-      break;
-    tnow = millis();
-    }
+   esp.check_Wait_Internet(); 
      
    esp.addEvent2Buffer(1,"");
    esp.sendBuffer2Site();
@@ -245,7 +237,7 @@ void sens_setup()
       }
     d.a[i].pre_value = d.a[i].norm_state;
     d.a[i].value = d.a[i].norm_state;
-    trace("Sens init! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value)+ " v2=" + String(d.a[i].pre_value)); 
+    //trace("Sens init! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value)+ " v2=" + String(d.a[i].pre_value)); 
     }
 }
 	

@@ -28,4 +28,5 @@ class ESP_WIFI {
 
   void checkIdle(); // отключение в случае простоя
   bool checkInitialized();
+  void check_Wait_Internet();
 };

@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  16-06-2018
+ Last changed:  28-10-2018
 */
 
 #include "Arduino.h"
@@ -236,4 +236,19 @@ void ESP_WIFI::sendBuffer2Site()
     buffer = "";
     
   buffer = "";  
+}
+
+//------------------------------------------------------------------------
+void ESP_WIFI::check_Wait_Internet()
+{
+   if(!checkInitialized())
+    return;
+   trace("check_Wait_Internet ..."); 
+   unsigned long tstart, tnow, timeout = 1000 * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
+   tnow, tstart = millis();
+   while(tnow < tstart + timeout ){
+    if(espSendCommand("AT+PING=\""+ String(HOST_STR) +"\"" , (char*)"OK" , 5000 ))
+      break;
+    tnow = millis();
+    }
 }
