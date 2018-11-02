@@ -250,5 +250,6 @@ void ESP_WIFI::check_Wait_Internet()
     if(espSendCommand("AT+PING=\""+ String(HOST_STR) +"\"" , (char*)"OK" , 5000 ))
       break;
     tnow = millis();
+    delay(10000);
     }
 }

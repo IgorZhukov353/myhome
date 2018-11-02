@@ -131,11 +131,11 @@ struct DATA {
       byte ledState;
       byte tmp_value;
       alarm_info a[MAX_ALARMS] = {
-        {1,0,0, LOW, ALARM_OFF, 6,0,false,false},  //pir1
+        {1,0,0, LOW, ALARM_ON, 6,0,false,false},  //pir1
         {2,0,0, LOW, ALARM_OFF, 5,0,false,false},  //pir2
         {3,0,0, HIGH,ALARM_ON, 7,0,false,false},  //дверь № 1 
         {4,0,0, HIGH,ALARM_ON, 8,0,false,false},  //дверь № 2 
-        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания (пока отключен)
+        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания 
         {6,0,0, LOW ,ALARM_OFF, 9,0,false,false},  //pir3
         {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true}   //уровень в дрен колодце
         };
