@@ -1,11 +1,16 @@
 <?php
-// izh 2018-03-19
+// izh 2018-10-31
 
-// 24683.databor.pw/send_mail.php
+require_once "SendMailSmtpClass.php"; // подключаем класс
+
 // f0195241.xsph.ru/send_mail.php
-// $sended2 = mail("igorjukov353@ya.ru", "from site","test");
-// echo "sended=" . $sended2;
-// exit();
+
+//header('Location: http://f0195241.xsph.ru/send_mail.php');
+//$sended2 = mail("igorjukov353@ya.ru", "from site","test");
+//echo "sended=" . $sended2;
+//$sended = sendYandexMail("test");
+//echo "sended=" . $sended;
+//exit();
 
 include("log/login_info.php");
 $link = mysqli_connect($hostname, $username, $password, $dbname);
@@ -34,23 +39,25 @@ try {
 	}
  
 	if(isset($msg) && strlen($msg) > 0){
-    		$sended = mail("igorjukov353@ya.ru", "from site", $msg);
+    		//$sended = mail("igorjukov353@ya.ru", "from site", $msg);
+    		$sended = sendYandexMail($msg);
+    		
 	    	if($sended){
-			$result = mysqli_query($link,"INSERT INTO Mail_Sended(Msg) VALUES ('" . mysqli_real_escape_string($link, $msg) . "')");
-			if(!$result){
-				throw new Exception("Ошибка добавления записи в Mail_Sended." . PHP_EOL . "MySQL_Error=". mysqli_error($link), 1);
-				}
-			mysqli_free_result($link);
+			    $result = mysqli_query($link,"INSERT INTO Mail_Sended(Msg) VALUES ('" . mysqli_real_escape_string($link, $msg) . "')");
+			    if(!$result){
+				    throw new Exception("Ошибка добавления записи в Mail_Sended." . PHP_EOL . "MySQL_Error=". mysqli_error($link), 1);
+				    }
+			    mysqli_free_result($link);
 		
-			$Mail_Sended_ID = mysqli_insert_id($link);
-			//echo "$Mail_Sended_ID". $Mail_Sended_ID;
+			    $Mail_Sended_ID = mysqli_insert_id($link);
+			    //echo "$Mail_Sended_ID". $Mail_Sended_ID;
 		
-			$result = mysqli_query($link, "CALL Link_Sensor_Activity_2_Mail_Sended(". $Mail_Sended_ID .");");
-			if(!$result)
-				throw new Exception("Ошибка вызова Link_Sensor_Activity_2_Mail_Sended(". $Mail_Sended_ID .")." . PHP_EOL . "MySQL_Error=". mysqli_error($link) , 1);
+			    $result = mysqli_query($link, "CALL Link_Sensor_Activity_2_Mail_Sended(". $Mail_Sended_ID .");");
+			    if(!$result)
+				    throw new Exception("Ошибка вызова Link_Sensor_Activity_2_Mail_Sended(". $Mail_Sended_ID .")." . PHP_EOL . "MySQL_Error=". mysqli_error($link) , 1);
 
 	    		echo "Letter sended.";
-		} 
+		    } 
 		else {
 	    		$err = error_get_last()[message];
 	    		throw new Exception("Ошибка отсылки сообщения." . PHP_EOL . "Error=".  $err, 1);
@@ -74,4 +81,27 @@ catch (Exception $e) {
     }
  
  mysqli_close($link);
+
+//------------------------------------------------------------------- 
+function sendYandexMail($msg)
+{
+$mailSMTP = new SendMailSmtpClass('igorjukov353@yandex.ru', 'UJMiop890', 'ssl://smtp.yandex.ru', 'Igor', 465);
+// $mailSMTP = new SendMailSmtpClass('логин', 'пароль', 'хост', 'имя отправителя');
+  
+// заголовок письма
+$headers= "MIME-Version: 1.0\r\n";
+$headers .= "Content-type: text/html; charset=utf-8\r\n"; // кодировка письма
+$headers .= "From: MyHome <MyHome@ya.ru>\r\n"; // от кого письмо
+$result =  $mailSMTP->send('igorjukov353@yandex.ru', 'from site', $msg, $headers); // отправляем письмо
+// $result =  $mailSMTP->send('Кому письмо', 'Тема письма', 'Текст письма', 'Заголовки письма');
+/*if($result === true){
+    echo "Письмо успешно отправлено";
+}
+else{
+    echo "Письмо не отправлено. Ошибка: " . $result;
+    }
+*/    
+return $result;    
+}
+ 
 ?>
