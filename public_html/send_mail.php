@@ -1,5 +1,5 @@
 <?php
-// izh 2018-10-31
+// izh 2018-11-04
 
 require_once "SendMailSmtpClass.php"; // подключаем класс
 
@@ -33,13 +33,13 @@ try {
 				$msg = $msg . "\n" . $row[0]. "\n" . $row[1]. "\n" . $row[2];
 				}
 			//echo "сообщ=". str_replace("\n","<br />",$msg) . "<br />";	
-			mysqli_free_result($link);
+			mysqli_free_result($result);
       			}
     		} while (mysqli_next_result($link));
 	}
  
 	if(isset($msg) && strlen($msg) > 0){
-    		//$sended = mail("igorjukov353@ya.ru", "from site", $msg);
+    		$sended = mail("igorjukov353@ya.ru", "from site", $msg);
     		$sended = sendYandexMail($msg);
     		
 	    	if($sended){
@@ -47,7 +47,7 @@ try {
 			    if(!$result){
 				    throw new Exception("Ошибка добавления записи в Mail_Sended." . PHP_EOL . "MySQL_Error=". mysqli_error($link), 1);
 				    }
-			    mysqli_free_result($link);
+//			    mysqli_free_result($result);
 		
 			    $Mail_Sended_ID = mysqli_insert_id($link);
 			    //echo "$Mail_Sended_ID". $Mail_Sended_ID;
@@ -92,7 +92,9 @@ $mailSMTP = new SendMailSmtpClass('igorjukov353@yandex.ru', 'UJMiop890', 'ssl://
 $headers= "MIME-Version: 1.0\r\n";
 $headers .= "Content-type: text/html; charset=utf-8\r\n"; // кодировка письма
 $headers .= "From: MyHome <MyHome@ya.ru>\r\n"; // от кого письмо
-$result =  $mailSMTP->send('igorjukov353@yandex.ru', 'from site', $msg, $headers); // отправляем письмо
+$server_name = "igorzhukov353.h1n.ru"; // откуда устанавливаем соединение
+$result =  $mailSMTP->send('igorjukov353@yandex.ru', 'from site', $msg, $headers, $server_name); // отправляем письмо
+//$result =  $mailSMTP->send('igor.zhukov@eaeconsult.ru', 'from site', $msg, $headers); // отправляем письмо
 // $result =  $mailSMTP->send('Кому письмо', 'Тема письма', 'Текст письма', 'Заголовки письма');
 /*if($result === true){
     echo "Письмо успешно отправлено";
