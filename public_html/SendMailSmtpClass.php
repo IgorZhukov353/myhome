@@ -28,6 +28,7 @@ class SendMailSmtpClass {
     public $smtp_port;
     public $smtp_charset;
     
+    
     public function __construct($smtp_username, $smtp_password, $smtp_host, $smtp_from, $smtp_port = 25, $smtp_charset = "utf-8") {
         $this->smtp_username = $smtp_username;
         $this->smtp_password = $smtp_password;
@@ -47,7 +48,7 @@ class SendMailSmtpClass {
     *
     * @return bool|string В случаи отправки вернет true, иначе текст ошибки    *
     */
-    function send($mailTo, $subject, $message, $headers) {
+    function send($mailTo, $subject, $message, $headers, $server_name) {
         $contentMail = "Date: " . date("D, d M Y H:i:s") . " UT\r\n";
         $contentMail .= 'Subject: =?' . $this->smtp_charset . '?B?'  . base64_encode($subject) . "=?=\r\n";
         $contentMail .= $headers . "\r\n";
@@ -61,7 +62,9 @@ class SendMailSmtpClass {
                 throw new Exception('Connection error');
             }
 			
-			$server_name = $_SERVER["SERVER_NAME"];
+//			$server_name = $_SERVER["SERVER_NAME"]; //izh 04-11-2018 не работает если запускается через планировщик
+//			$server_name = "igorzhukov353.h1n.ru";
+//          echo "server=". $server_name; 			
             fputs($socket, "HELO $server_name\r\n");
             if (!$this->_parseServer($socket, "250")) {
                 fclose($socket);
