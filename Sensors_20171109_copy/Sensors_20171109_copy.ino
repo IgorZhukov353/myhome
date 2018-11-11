@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  26-10-2018
+ Last changed:  11-11-2018
 */
-#define VERSION "Ver 1.5 of 26-10-2018 Igor Zhukov (C)"
+#define VERSION "Ver 1.6 of 11-11-2018 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -132,11 +132,11 @@ struct DATA {
       byte tmp_value;
       alarm_info a[MAX_ALARMS] = {
         {1,0,0, LOW, ALARM_ON, 6,0,false,false},  //pir1
-        {2,0,0, LOW, ALARM_OFF, 5,0,false,false},  //pir2
+        {2,0,0, LOW, ALARM_ON, 5,0,false,false},  //pir2 гараж
         {3,0,0, HIGH,ALARM_ON, 7,0,false,false},  //дверь № 1 
         {4,0,0, HIGH,ALARM_ON, 8,0,false,false},  //дверь № 2 
         {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания 
-        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false},  //pir3
+        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false},  //pir3 кухня
         {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true}   //уровень в дрен колодце
         };
     };
@@ -564,6 +564,28 @@ void remoteRebootExecute()
   trace( "Rebooted.");
 }
 
+// проверка напряжения на аккумуляторе
+void checkAccumDC() 
+{
+
+int analogInput = 0;
+float vout = 0.0;
+float vin = 0.0;
+float R1 = 96600.0; // resistance of R1 (100K) -see text!
+float R2 = 11600.0; // resistance of R2 (10K) — see text!
+int value = 0;
+int pinVal = 1;
+
+  pinMode(analogInput, INPUT);
+  value = analogRead(analogInput);
+  vout = (value * 4.6) / 1024.0; // see text
+  vin = vout / (R2/(R1+R2));
+  if (vin<0.09) {
+    vin=0.0;  //statement to quash undesired reading !
+  }
+  trace("VIN=" + String(vin));
+}
+  
 //------------------------------------------------------------------------
 // функция термостата газового котла и не только
 void remoteTermostat_check() 
@@ -572,6 +594,8 @@ void remoteTermostat_check()
   if(powerAC_off){
       esp.addEvent2Buffer(9,"");
   }
+  
+  checkAccumDC();
    
   if(fan.ControlOn){
       if(millis() > fan.ControlUntilTime){ // закончен период работы вентилятора
