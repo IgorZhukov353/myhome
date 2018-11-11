@@ -145,7 +145,7 @@ struct DATA {
 bool traceInit = false;						      // признак инициализации трассировки
 bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
 bool powerAC_off = 0;                   // признак отсутствия внешнего напряжения 220В
-
+float accum_DC_V;                       // напряжение на аккумуляторе БП
 //--------------------------------------------------------------------------------
 class DeviceControl {
 public:
@@ -570,7 +570,6 @@ void checkAccumDC()
 
 int analogInput = 0;
 float vout = 0.0;
-float vin = 0.0;
 float R1 = 96600.0; // resistance of R1 (100K) -see text!
 float R2 = 11600.0; // resistance of R2 (10K) — see text!
 int value = 0;
@@ -579,11 +578,11 @@ int pinVal = 1;
   pinMode(analogInput, INPUT);
   value = analogRead(analogInput);
   vout = (value * 4.6) / 1024.0; // see text
-  vin = vout / (R2/(R1+R2));
-  if (vin<0.09) {
-    vin=0.0;  //statement to quash undesired reading !
+  accum_DC_V = vout / (R2/(R1+R2));
+  if(accum_DC_V < 0.09) {
+    accum_DC_V=0.0;  //statement to quash undesired reading !
   }
-  trace("VIN=" + String(vin));
+  trace("VIN=" + String(accum_DC_V));
 }
   
 //------------------------------------------------------------------------
@@ -592,7 +591,7 @@ void remoteTermostat_check()
 {
   String str;
   if(powerAC_off){
-      esp.addEvent2Buffer(9,"");
+      esp.addEvent2Buffer(9,"VIN=" + String(accum_DC_V));
   }
   
   checkAccumDC();
