@@ -23,7 +23,7 @@ echo $now->format("d.m.Y H:i:s");
 <caption>Текущие температура и влажность.</caption>
   <thead>
     <tr>
-<td style="width: 80px; text-align: center;">Дата</td>
+<td style="width: 140px; text-align: center;">Дата</td>
 <td style="width: 130px; text-align: center;">Место</td>
 <td style="width: 140px; text-align: center;">Темп/Влажн</td>
 <td style="width: 140px; text-align: center;">Мin/Max/Avg</td>
@@ -44,7 +44,7 @@ if (mysqli_connect_errno()) {
 try {  
 	mysqli_set_charset($link, 'utf8');
 	$result = mysqli_query($link, "SET time_zone = '+03:00'");
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%T') as Date,Name,Temp_Value,Humidity_Value,Alarm, min_temp, max_temp, avg_temp FROM V_LAST_TEMP_HUM");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%e.%c %T') as Date,Name,Temp_Value,Humidity_Value,Alarm, min_temp, max_temp, avg_temp FROM V_LAST_TEMP_HUM");
         while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
 ?>
 <tr>
