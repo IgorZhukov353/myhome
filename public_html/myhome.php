@@ -44,7 +44,7 @@ if (mysqli_connect_errno()) {
 try {  
 	mysqli_set_charset($link, 'utf8');
 	$result = mysqli_query($link, "SET time_zone = '+03:00'");
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%e.%c %T') as Date,Name,Temp_Value,Humidity_Value,Alarm, min_temp, max_temp, avg_temp FROM V_LAST_TEMP_HUM");
+        $result = mysqli_query($link, "SELECT Date_Str,Name,Temp_Value,Humidity_Value,Alarm, min_temp, max_temp, avg_temp FROM V_LAST_TEMP_HUM");
         while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
 ?>
 <tr>
@@ -63,7 +63,10 @@ if($row[4] == 1)
 </div></td>
 
 <td style="width: 140px; text-align: center;">
-<?php echo $row[5] ?>&#186; / <?php echo $row[6] ?>&#186 / <?php echo $row[7] ?>&#186
+<?php 
+if(isset($row[5])) 
+    echo $row[5] . "&#186 / ". $row[6] . "&#186 / ". $row[7] . "&#186" 
+?>
 </td>
 </tr>
 <?php            }
