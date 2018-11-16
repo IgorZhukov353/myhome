@@ -55,11 +55,16 @@ try {
 <div class=bblock2 style="width: 30px; text-align: center;">
 <?php 
 if($row[4] == 1)
- 	echo "<span style=\"color:red\">&#128226;</span> ";
+ 	echo "<span style=\"color:red\">&#128226;</span>";
 ?>
 </div>
 <div class=bblock2>
-<?php echo $row[2] ?>&#186; / <?php echo ($row[3] == 0)? "--": $row[3] . "%" ?>
+<?php 
+if($row[4] == 1)
+ 	echo "<span style=\"color:red\">". $row[2] ."&#186;</span>";
+else 	
+    echo $row[2]. "&#186;";
+?> / <?php echo ($row[3] == 0)? "--": $row[3] . "%" ?>
 </div></td>
 
 <td style="width: 140px; text-align: center;">
@@ -144,18 +149,21 @@ echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
 </details>
 <br/>
 <?php
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y %T') as Date,TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff FROM Event where Event_Type_ID=10");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y %T') as Date,TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff, TIMESTAMPDIFF(minute,SYSDATE(),ADDTIME (Date,'0:10:0.0')) + 1 FROM Event where Event_Type_ID=10");
         $row = mysqli_fetch_array($result, MYSQLI_NUM);
 ?>
 
-<details> <summary>Выполнение команд. Последнее:
+<details> <summary>Выполн. команд. Послед:
 <?php 
 $diff = $row[1];
+$str2 = "";
 if($diff > 10)
 	$str ="red";
-else
+else{
+    $str2 = " (". $row[2] ."...)";
 	$str ="green";
-echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
+}
+echo "<span style=\"color:". $str . ";\">". $row[0]. $str2."</span>";
 ?>
 </summary>
 <table class="blueTable" style="width: 400px;" border="1">
