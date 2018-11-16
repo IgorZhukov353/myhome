@@ -143,7 +143,21 @@ echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
 </table>
 </details>
 <br/>
-<details> <summary>Выполнение команд.</summary>
+<?php
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y %T') as Date,TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff FROM Event where Event_Type_ID=10");
+        $row = mysqli_fetch_array($result, MYSQLI_NUM);
+?>
+
+<details> <summary>Выполнение команд. Последнее:
+<?php 
+$diff = $row[1];
+if($diff > 10)
+	$str ="red";
+else
+	$str ="green";
+echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
+?>
+</summary>
 <table class="blueTable" style="width: 400px;" border="1">
   <thead>
 <tr>

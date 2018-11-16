@@ -1,5 +1,5 @@
 <?php
-// izh 2018-05-07
+// izh 2018-11-16
  
 function getCommand($hostname, $username, $password, $dbname)
 {
@@ -16,22 +16,20 @@ try
 {
 	mysqli_set_charset($link, 'utf8');
 	$result = mysqli_query($link, "SET time_zone = '+03:00'");
-	 
-    	$result = mysqli_query($link,"select code, command_id from Command where Completed_Date is null order by command_id limit 1");
-	$row = mysqli_fetch_row($result);
-	//printf("Select вернул %d строк.\n". "MySQL_Error=". mysqli_error($link), mysqli_num_rows($result));
 
-    	if($row){
-        	$id = $row[1];
-        	$cmd = $row[0];
-        	mysqli_free_result($result);
-        	$result = mysqli_query($link,"update Command set Completed_Date = now() where command_id =". $id );
-		if(!$result){
-			throw new Exception("Ошибка обновления записи в Сommand." . PHP_EOL . "id=" . $id. "!" . PHP_EOL . "MySQL_Error=". mysqli_error($link), 1);
-			}
-    	}
+	// Execute multi query
+	if (mysqli_multi_query($link,"CALL Get_Command();")){
+		do {
+	    	// Store first result set
+    		if($result = mysqli_store_result($link)){
+			    while ($row = mysqli_fetch_row($result)){
+				    $cmd = $row[0];
+				    }
+			    mysqli_free_result($result);
+      			}
+    		} while (mysqli_next_result($link));
+	}
 }
-
 
 catch (Exception $e) {
     echo 'Error :' . $e->getMessage() . '<br />';
