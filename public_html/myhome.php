@@ -23,7 +23,7 @@ echo $now->format("d.m.Y H:i:s");
 <caption>Текущие температура и влажность.</caption>
   <thead>
     <tr>
-<td style="width: 80px; text-align: center;">Дата</td>
+<td style="width: 140px; text-align: center;">Дата</td>
 <td style="width: 130px; text-align: center;">Место</td>
 <td style="width: 140px; text-align: center;">Темп/Влажн</td>
 <td style="width: 140px; text-align: center;">Мin/Max/Avg</td>
@@ -44,7 +44,7 @@ if (mysqli_connect_errno()) {
 try {  
 	mysqli_set_charset($link, 'utf8');
 	$result = mysqli_query($link, "SET time_zone = '+03:00'");
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%T') as Date,Name,Temp_Value,Humidity_Value,Alarm, min_temp, max_temp, avg_temp FROM V_LAST_TEMP_HUM");
+        $result = mysqli_query($link, "SELECT Date_Str,Name,Temp_Value,Humidity_Value,Alarm, min_temp, max_temp, avg_temp FROM V_LAST_TEMP_HUM");
         while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
 ?>
 <tr>
@@ -55,15 +55,23 @@ try {
 <div class=bblock2 style="width: 30px; text-align: center;">
 <?php 
 if($row[4] == 1)
- 	echo "<span style=\"color:red\">&#128226;</span> ";
+ 	echo "<span style=\"color:red\">&#128226;</span>";
 ?>
 </div>
 <div class=bblock2>
-<?php echo $row[2] ?>&#186; / <?php echo ($row[3] == 0)? "--": $row[3] . "%" ?>
+<?php 
+if($row[4] == 1)
+ 	echo "<span style=\"color:red\">". $row[2] ."&#186;</span>";
+else 	
+    echo $row[2]. "&#186;";
+?> / <?php echo ($row[3] == 0)? "--": $row[3] . "%" ?>
 </div></td>
 
 <td style="width: 140px; text-align: center;">
-<?php echo $row[5] ?>&#186; / <?php echo $row[6] ?>&#186 / <?php echo $row[7] ?>&#186
+<?php 
+if(isset($row[5])) 
+    echo $row[5] . "&#186 / ". $row[6] . "&#186 / ". $row[7] . "&#186" 
+?>
 </td>
 </tr>
 <?php            }
@@ -140,7 +148,24 @@ echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
 </table>
 </details>
 <br/>
-<details> <summary>Выполнение команд.</summary>
+<?php
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y %T') as Date,TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff, TIMESTAMPDIFF(minute,SYSDATE(),ADDTIME (Date,'0:10:0.0')) + 1 FROM Event where Event_Type_ID=10");
+        $row = mysqli_fetch_array($result, MYSQLI_NUM);
+?>
+
+<details> <summary>Выполн. команд. Послед:
+<?php 
+$diff = $row[1];
+$str2 = "";
+if($diff > 10)
+	$str ="red";
+else{
+    $str2 = " (". $row[2] ."...)";
+	$str ="green";
+}
+echo "<span style=\"color:". $str . ";\">". $row[0]. $str2."</span>";
+?>
+</summary>
 <table class="blueTable" style="width: 400px;" border="1">
   <thead>
 <tr>
