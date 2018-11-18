@@ -590,11 +590,13 @@ int pinVal = 1;
 void remoteTermostat_check() 
 {
   String str;
+
+  checkAccumDC();
   if(powerAC_off){
       esp.addEvent2Buffer(9,"VIN=" + String(accum_DC_V));
   }
   
-  checkAccumDC();
+  
    
   if(fan.ControlOn){
       if(millis() > fan.ControlUntilTime){ // закончен период работы вентилятора
