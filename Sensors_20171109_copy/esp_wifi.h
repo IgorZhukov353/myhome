@@ -12,7 +12,8 @@ class ESP_WIFI {
   unsigned long lastWIFISended;
   short sendErrorCounter;
   short routerConnectErrorCounter;
-  
+
+  short sendErrorCounter_ForAll;
 
   ESP_WIFI();
   bool espSerialSetup();

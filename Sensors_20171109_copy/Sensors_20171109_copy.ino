@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  11-11-2018
+ Last changed:  13-12-2018
 */
-#define VERSION "Ver 1.6 of 11-11-2018 Igor Zhukov (C)"
+#define VERSION "Ver 1.7 of 13-12-2018 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -51,14 +51,14 @@
 
 #define PIN22	22		// Реле преключение шлейфа термостат котла линия № 1
 #define PIN23	23		// Реле преключение шлейфа термостат котла линия № 2
-#define PIN24	24		// Реле перезагрузки INT1
+#define PIN24	24		// Реле перезагрузки INT1 (перезагрузка роутера)
 #define PIN25	25		// Реле вентиляторов вытяжки в подполе INT2
 #define PIN26	26		// Питание насоса в дренажном колодце
 #define PIN27	27    // Питание греющего кабеля в дренажном колодце & септике
 #define PIN28	28    // Датчик уровня в дренажном колодце
 #define PIN29	29    // Включение питания ESP8266 реле INT3
 
-#define PIN30	30    // Свободный вход реле INT4
+#define PIN30	30    // Свободный вход реле INT4 - перезагрузка камер, регистратора
 #define PIN31	31    // Реле питания греющего кабеля водяных труб в подполе INT1 (Реле №2 в ванной)
 #define PIN32	32    // Датчик температуры DS18B20 водяных труб в подполе (через макетную плату Белый)
 #define PIN33	33    // Наличие питания ~220 V (внешнее питание 5 V через доп блок питания)
@@ -146,6 +146,7 @@ bool traceInit = false;						      // признак инициализации 
 bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
 bool powerAC_off = 0;                   // признак отсутствия внешнего напряжения 220В
 float accum_DC_V;                       // напряжение на аккумуляторе БП
+
 //--------------------------------------------------------------------------------
 class DeviceControl {
 public:
@@ -432,9 +433,12 @@ void responseProcessing(String response)
       trace( str); 
       esp.addEvent2Buffer(7, str);
       
+      if(cmd == "reboot_router")
+        remoteRebootExecute(1);
+      else 
       if(cmd == "reboot")
-        remoteRebootExecute();
-      else      
+        remoteRebootExecute(2);
+      else     
       if(cmd == "sensor_ignore"){
         d.sysState = 0;  
         d.ledState = 0;
@@ -551,15 +555,17 @@ void responseProcessing(String response)
 
 //------------------------------------------------------------------------
 // удаленная перезагрузка всех устройств
-void remoteRebootExecute() 
+void remoteRebootExecute(int act) 
 {
   trace( "Rebooting...");
-  pinMode(PIN24, OUTPUT);
+  int pin = (act==1)?PIN24:PIN30;
   
-  digitalWrite(PIN24, LOW);
+  pinMode(pin, OUTPUT);
+  
+  digitalWrite(pin, LOW);
   delay(2000);
-  digitalWrite(PIN24, HIGH);
-  pinMode(PIN24, INPUT);
+  digitalWrite(pin, HIGH);
+  pinMode(pin, INPUT);
   
   trace( "Rebooted.");
 }
@@ -708,7 +714,7 @@ void sendError_check()
     bool res = esp.espSendCommand( "AT+PING=\"192.168.0.1\"" , (char*)"OK" , 5000); // попытка пингануть роутер
     if(res || millis() - lastRouterReboot > WATCHDOG_TIMEOUT ){ // если он жив, то проблема с доступом в Инет, перегрузить роутер или пропал WIFI (но не чаще чем в 1 час)
       lastRouterReboot = millis();
-      remoteRebootExecute();
+      remoteRebootExecute(1);
       }
     }
 }
@@ -744,17 +750,27 @@ void loop()
       
       String dopInfo = "";
       for(ind = 0; ind < CHECKED_IP; ind++){ // пинги видеорегистратора и камер
-        String str = (esp.espSendCommand( "AT+PING=\"192.168.0." + String(a[ind]) + "\"" , (char*)"OK" , 5000 ))? "ok":"failed";
-        dopInfo += String(a[ind]) + ":" + str + ";"; // json экранирование ":" -> \\u003A
+        //String str = (esp.espSendCommand( "AT+PING=\"192.168.0." + String(a[ind]) + "\"" , (char*)"OK" , 5000 ))? "ok":"failed";
+        //dopInfo += String(a[ind]) + ":" + str + ";"; // json экранирование ":" -> \\u003A
+        if(!esp.espSendCommand( "AT+PING=\"192.168.0." + String(a[ind]) + "\"" , (char*)"OK" , 5000 )){
+          if(dopInfo != "")
+            dopInfo += ",";
+          dopInfo += String(a[ind]);
+        }
       }
-
+      if(dopInfo != "")
+        dopInfo = "PingErr:" + dopInfo + ";";
+      if(esp.sendErrorCounter_ForAll)  
+        dopInfo += "SErr:" + String(esp.sendErrorCounter_ForAll) + ";";
+        
       unsigned int d = t/(24*60*60000);
       unsigned int h = (t%(24*60*60000)) / (60*60000);
       trace( "Watchdog=" + String(t) + dopInfo);
 
       //esp.send2site("send_mail.php"); /*izh 17-03-2018 раз в час проверить срабатывание датчиков и температуры */
 
-      esp.addEvent2Buffer(3, "days=" + String(d) + "hours="  + String(h) + "(" + dopInfo + ")");
+      //esp.addEvent2Buffer(3, "days=" + String(d) + "hours="  + String(h) + "(" + dopInfo + ")");
+      esp.addEvent2Buffer(3, "T=" + ((d>0)? String(d) + "d.":"")  + String(h) + "h.(" + dopInfo + ")");
       traceInit = false;
     }
  }

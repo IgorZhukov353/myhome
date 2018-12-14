@@ -80,8 +80,10 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
 //      r = espSendCommand("AT+CIPCLOSE", ok_str , 5000 );
       break;
   }
-  if(!r)
+  if(!r){
     sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
+    sendErrorCounter_ForAll++;
+  }
   else
     sendErrorCounter = 0;
     
