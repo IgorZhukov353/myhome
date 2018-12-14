@@ -86,7 +86,8 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
   }
   else
     sendErrorCounter = 0;
-    
+
+  sendCounter_ForAll++;  
   lastWIFISended = millis();
   return r;
 }

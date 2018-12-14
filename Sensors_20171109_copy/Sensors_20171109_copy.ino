@@ -146,7 +146,7 @@ bool traceInit = false;						      // признак инициализации 
 bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
 bool powerAC_off = 0;                   // признак отсутствия внешнего напряжения 220В
 float accum_DC_V;                       // напряжение на аккумуляторе БП
-
+int routerRebootCount = 0;              // счетчик перезагрузок роутера
 //--------------------------------------------------------------------------------
 class DeviceControl {
 public:
@@ -715,6 +715,7 @@ void sendError_check()
     if(res || millis() - lastRouterReboot > WATCHDOG_TIMEOUT ){ // если он жив, то проблема с доступом в Инет, перегрузить роутер или пропал WIFI (но не чаще чем в 1 час)
       lastRouterReboot = millis();
       remoteRebootExecute(1);
+      routerRebootCount++;
       }
     }
 }
@@ -760,8 +761,14 @@ void loop()
       }
       if(dopInfo != "")
         dopInfo = "PingErr:" + dopInfo + ";";
+        
+      dopInfo += "Send:" + String(esp.sendCounter_ForAll) + ";";  
+
       if(esp.sendErrorCounter_ForAll)  
-        dopInfo += "SErr:" + String(esp.sendErrorCounter_ForAll) + ";";
+        dopInfo += "SendErr:" + String(esp.sendErrorCounter_ForAll) + ";";
+
+      if(routerRebootCount)  
+        dopInfo += "routrReboot:" + String(routerRebootCount) + ";";
         
       unsigned int d = t/(24*60*60000);
       unsigned int h = (t%(24*60*60000)) / (60*60000);
