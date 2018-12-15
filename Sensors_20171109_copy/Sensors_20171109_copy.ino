@@ -557,9 +557,8 @@ void responseProcessing(String response)
 // удаленная перезагрузка всех устройств
 void remoteRebootExecute(int act) 
 {
-  trace( "Rebooting...");
   int pin = (act==1)?PIN24:PIN30;
-  
+  trace( "Rebooting...");
   pinMode(pin, OUTPUT);
   
   digitalWrite(pin, LOW);
@@ -601,9 +600,7 @@ void remoteTermostat_check()
   if(powerAC_off){
       esp.addEvent2Buffer(9,"VIN=" + String(accum_DC_V));
   }
-  
-  
-   
+    
   if(fan.ControlOn){
       if(millis() > fan.ControlUntilTime){ // закончен период работы вентилятора
         str = "fan: stop.";
@@ -759,10 +756,9 @@ void loop()
           dopInfo += String(a[ind]);
         }
       }
+      dopInfo += "Send:" + String(esp.sendCounter_ForAll) + ";";  
       if(dopInfo != "")
         dopInfo = "PingErr:" + dopInfo + ";";
-        
-      dopInfo += "Send:" + String(esp.sendCounter_ForAll) + ";";  
 
       if(esp.sendErrorCounter_ForAll)  
         dopInfo += "SendErr:" + String(esp.sendErrorCounter_ForAll) + ";";
