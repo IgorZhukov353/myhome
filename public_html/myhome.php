@@ -111,7 +111,7 @@ if(isset($row[5]))
 <!--/details-->
 <br/>
 <?php
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y %T') as Date,Dop_Info, TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff FROM V_LAST_WATCHDOG_EVENT limit 5");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%y %T') as Date,Dop_Info, TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff FROM V_LAST_WATCHDOG_EVENT limit 5");
         $row = mysqli_fetch_array($result, MYSQLI_NUM);
 ?>
 
@@ -124,11 +124,11 @@ else
 	$str ="green";
 echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
 ?></summary>
-<table class="blueTable" style="width: 550px;" border="1">
+<table class="blueTable" style="width: 400px;" border="1">
   <thead>
 <tr>
 <td style="width: 130px; text-align: center;">Дата</td>
-<td style="width: 450px; text-align: center;">Инфо</td>
+<td style="width: 270px; text-align: center;">Инфо</td>
 </tr>
   </thead>  
 <tbody>
@@ -137,7 +137,7 @@ echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
 ?>
 <tr>
 <td style="width: 130px;text-align: center;"><?php echo $row[0] ?></td>
-<td style="width: 450px;"><?php echo $row[1] ?></td>
+<td style="width: 270px;"><?php echo $row[1] ?></td>
 </tr>
 <?php          
 		$row = mysqli_fetch_array($result, MYSQLI_NUM);
@@ -149,7 +149,7 @@ echo "<span style=\"color:". $str . ";\">". $row[0]. "</span>";
 </details>
 <br/>
 <?php
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y %T') as Date,TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff, TIMESTAMPDIFF(minute,SYSDATE(),ADDTIME (Date,'0:10:0.0')) + 1 FROM Event where Event_Type_ID=10");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%y %T') as Date,TIMESTAMPDIFF(minute,Date,SYSDATE()) as diff, TIMESTAMPDIFF(minute,SYSDATE(),ADDTIME (Date,'0:10:0.0')) + 1 FROM Event where Event_Type_ID=10");
         $row = mysqli_fetch_array($result, MYSQLI_NUM);
 ?>
 
@@ -176,7 +176,7 @@ echo "<span style=\"color:". $str . ";\">". $row[0]. $str2."</span>";
 
 <tbody>
 <?php
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Completed_Date,'%d.%m.%Y %T') as Completed_Date, Code, Command_id FROM Command order by cast(Completed_Date as datetime) desc limit 20");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Completed_Date,'%d.%m.%y %T') as Completed_Date, Code, Command_id FROM Command order by cast(Completed_Date as datetime) desc limit 20");
         while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
 ?>
 <tr>
