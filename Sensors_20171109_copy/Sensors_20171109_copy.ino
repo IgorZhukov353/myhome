@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  13-12-2018
+ Last changed:  18-12-2018
 */
-#define VERSION "Ver 1.7 of 13-12-2018 Igor Zhukov (C)"
+#define VERSION "Ver 1.8 of 18-12-2018 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -756,16 +756,10 @@ void loop()
           dopInfo += String(a[ind]);
         }
       }
-      dopInfo += "Send:" + String(esp.sendCounter_ForAll) + ";";  
       if(dopInfo != "")
-        dopInfo = "PingErr:" + dopInfo + ";";
+        dopInfo = "PingErr:" + dopInfo + " ";
+      dopInfo += "Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + " RR="  + String(routerRebootCount);
 
-      if(esp.sendErrorCounter_ForAll)  
-        dopInfo += "SendErr:" + String(esp.sendErrorCounter_ForAll) + ";";
-
-      if(routerRebootCount)  
-        dopInfo += "routrReboot:" + String(routerRebootCount) + ";";
-        
       unsigned int d = t/(24*60*60000);
       unsigned int h = (t%(24*60*60000)) / (60*60000);
       trace( "Watchdog=" + String(t) + dopInfo);
@@ -773,7 +767,7 @@ void loop()
       //esp.send2site("send_mail.php"); /*izh 17-03-2018 раз в час проверить срабатывание датчиков и температуры */
 
       //esp.addEvent2Buffer(3, "days=" + String(d) + "hours="  + String(h) + "(" + dopInfo + ")");
-      esp.addEvent2Buffer(3, "T=" + ((d>0)? String(d) + "d.":"")  + String(h) + "h.(" + dopInfo + ")");
+      esp.addEvent2Buffer(3, "T=" + ((d>0)? String(d) + "d.":"")  + String(h) + "h. (" + dopInfo + ")");
       traceInit = false;
     }
  }

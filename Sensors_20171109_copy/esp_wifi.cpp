@@ -76,6 +76,7 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
         continue;
       }
       r = espSendCommand( cmd2 , ok_str , 5000 );             // подготовить отсылку запроса - длина запроса
+      bytesSended += requestLength;
       r = espSendCommand( request , (char*)"CLOSED" , 15000 );  // отослать запрос и получить ответ
 //      r = espSendCommand("AT+CIPCLOSE", ok_str , 5000 );
       break;

@@ -15,6 +15,8 @@ class ESP_WIFI {
 
   int sendErrorCounter_ForAll;
   int sendCounter_ForAll;
+  
+  unsigned long bytesSended;
 
   ESP_WIFI();
   bool espSerialSetup();
