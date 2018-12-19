@@ -35,7 +35,7 @@ try {
 
 			    mysqli_free_result($result);
       			}
-    		} while (mysqli_more_results($link) && mysqli_next_result($link));
+    		} while (mysqli_more_results($link) && mysqli_next_result($link)); //izh 19-12-2018
 	}
  
 	if(isset($msg) && strlen($msg) > 0){
