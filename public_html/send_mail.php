@@ -1,5 +1,5 @@
 <?php
-// izh 2018-11-04
+// izh 2018-12-19
 
 require_once "SendMailSmtpClass.php"; // подключаем класс
 
@@ -29,17 +29,17 @@ try {
 	    	// Store first result set
     		if($result = mysqli_store_result($link)){
         		$msg = '';
-			while ($row = mysqli_fetch_row($result)){
-				$msg = $msg . "\n" . $row[0]. "\n" . $row[1]. "\n" . $row[2];
-				}
-			//echo "сообщ=". str_replace("\n","<br />",$msg) . "<br />";	
-			mysqli_free_result($result);
+			    while ($row = mysqli_fetch_row($result)){
+				    $msg = $msg . "\n" . $row[0]. "\n" . $row[1]. "\n" . $row[2];
+				    }
+
+			    mysqli_free_result($result);
       			}
-    		} while (mysqli_next_result($link));
+    		} while (mysqli_more_results($link) && mysqli_next_result($link));
 	}
  
 	if(isset($msg) && strlen($msg) > 0){
-    		$sended = mail("igorjukov353@ya.ru", "from site", $msg);
+    		//$sended = mail("igorjukov353@ya.ru", "from site", $msg);
     		$sended = sendYandexMail($msg);
     		
 	    	if($sended){
