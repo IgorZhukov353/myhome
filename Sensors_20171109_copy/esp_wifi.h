@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  06-05-2018
+ Last changed:  01-04-2019
 */
 class ESP_WIFI {
 //protected:  
@@ -14,7 +14,7 @@ class ESP_WIFI {
   short routerConnectErrorCounter;
 
   int sendErrorCounter_ForAll;
-  int sendCounter_ForAll;
+  unsigned long sendCounter_ForAll;
   
   unsigned long bytesSended;
 

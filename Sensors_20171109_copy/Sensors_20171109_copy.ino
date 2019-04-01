@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  18-12-2018
+ Last changed:  01-04-2019
 */
-#define VERSION "Ver 1.8 of 18-12-2018 Igor Zhukov (C)"
+#define VERSION "Ver 1.9 of 1-04-2019 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -143,10 +143,9 @@ struct DATA {
   } d;
 
 bool traceInit = false;						      // признак инициализации трассировки
-bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
 bool powerAC_off = 0;                   // признак отсутствия внешнего напряжения 220В
 float accum_DC_V;                       // напряжение на аккумуляторе БП
-int routerRebootCount = 0;              // счетчик перезагрузок роутера
+
 //--------------------------------------------------------------------------------
 class DeviceControl {
 public:
@@ -168,8 +167,13 @@ short boilerTargetTemp;                 // целевая температура
 bool  boilerCurrentMode;                // текущий режим ардуино-термостата
 unsigned long boilerControlUntilTime;   // управлять котлом до этого времени, потом переключить на штатный термостат
 */
+bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
+unsigned long lastWatchDogOK_Sended2BD;      // время отправки дежурного пакета в БД
+byte daysCounter;                       // количество дней с начала работы (отслеживание перехода через 50 дней)
 
+int routerRebootCount = 0;              // счетчик перезагрузок роутера
 unsigned long lastRouterReboot;         // время последней перезагрузки роутера
+
 
 void blinky_check();
 void sens_check();
@@ -178,6 +182,7 @@ void command_check();
 void remoteTermostat_check();
 void sendError_check();
 void sendBuffer2Site_check();
+void checkPump_check();
 
 Activity state_led_blink(1000,blinky_check);
 Activity sens(SENS_CHECK_TIMEOUT,sens_check);
@@ -187,6 +192,7 @@ Activity readCommand(COMMAND_TIMEOUT,command_check);
 Activity remoteTermostat(BOILER_TIMEOUT,remoteTermostat_check);
 Activity sendError(COMMAND_TIMEOUT,sendError_check); 
 Activity sendBuffer2Site(1000,sendBuffer2Site_check); // передача буфера информации раз в секунду (если есть что)
+Activity checkPump(((60000 * 60)),checkPump_check); 
 
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,
@@ -707,7 +713,7 @@ void remoteTermostat_check()
 void sendError_check() 
 {
   trace( "SendErrorCounter=" + String(esp.sendErrorCounter) + " RouterConnectErrorCounter=" + String(esp.routerConnectErrorCounter));
-  if(esp.sendErrorCounter > 10){
+  if(esp.sendErrorCounter > 3){
     bool res = esp.espSendCommand( "AT+PING=\"192.168.0.1\"" , (char*)"OK" , 5000); // попытка пингануть роутер
     if(res || millis() - lastRouterReboot > WATCHDOG_TIMEOUT ){ // если он жив, то проблема с доступом в Инет, перегрузить роутер или пропал WIFI (но не чаще чем в 1 час)
       lastRouterReboot = millis();
@@ -724,6 +730,15 @@ void sendBuffer2Site_check()
 }
 
 //------------------------------------------------------------------------
+void checkPump_check()
+{
+ DateTime now = RTC.now();  
+ if(now.hour() == 5 && d.a[6].value == 1){ // в 5 утра если установлен датчик уровня -> включить насос
+    responseProcessing("command=pump;15;");
+    }
+}
+
+//------------------------------------------------------------------------
 void loop() 
 {
 // return;
@@ -736,6 +751,7 @@ void loop()
  tempHum.checkActivated();
  readCommand.checkActivated();
  remoteTermostat.checkActivated();
+ checkPump.checkActivated();
 
  unsigned long t = millis();
  if( (t % WATCHDOG_TIMEOUT) < 10000){ // регулярная отправка дежурного сообщения ( раз в час )
@@ -758,12 +774,19 @@ void loop()
       }
       if(dopInfo != "")
         dopInfo = "PingErr:" + dopInfo + " ";
-      dopInfo += "Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + " RR="  + String(routerRebootCount);
+      dopInfo += "Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + 
+                 " RR="  + String(routerRebootCount) + "(" + String((t - lastRouterReboot) / (60*60000)) + "h.)";
 
       unsigned int d = t/(24*60*60000);
       unsigned int h = (t%(24*60*60000)) / (60*60000);
       trace( "Watchdog=" + String(t) + dopInfo);
-
+      
+      if(lastWatchDogOK_Sended2BD > t){
+       daysCounter += 50;
+      }
+      d += daysCounter;
+      lastWatchDogOK_Sended2BD = t;
+      
       //esp.send2site("send_mail.php"); /*izh 17-03-2018 раз в час проверить срабатывание датчиков и температуры */
 
       //esp.addEvent2Buffer(3, "days=" + String(d) + "hours="  + String(h) + "(" + dopInfo + ")");
