@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  01-04-2019
+ Last changed:  04-05-2019
 */
-#define VERSION "Ver 1.9 of 1-04-2019 Igor Zhukov (C)"
+#define VERSION "Ver 1.91 of 4-05-2019 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -564,11 +564,13 @@ void responseProcessing(String response)
 void remoteRebootExecute(int act) 
 {
   int pin = (act==1)?PIN24:PIN30;
+  int t = (act==1)?2000:1000 * 30;
   trace( "Rebooting...");
   pinMode(pin, OUTPUT);
   
   digitalWrite(pin, LOW);
-  delay(2000);
+  
+  delay(t);
   digitalWrite(pin, HIGH);
   pinMode(pin, INPUT);
   
