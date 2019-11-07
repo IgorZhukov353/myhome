@@ -7,7 +7,7 @@ include("log/login_info.php");
 //connection to the database
 $link = mysqli_connect($hostname, $username, $password, $dbname);
 if (mysqli_connect_errno()) {
-	printf("Не удалось подключиться: %s\n", mysqli_connect_error());
+	printf("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРєР»СЋС‡РёС‚СЊСЃСЏ: %s\n", mysqli_connect_error());
     	exit();
 	}
 
