@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  04-05-2019
+ Last changed:  04-11-2019
 */
-#define VERSION "Ver 1.91 of 4-05-2019 Igor Zhukov (C)"
+#define VERSION "Ver 1.92 of 4-11-2019 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -653,7 +653,7 @@ void remoteTermostat_check()
       unsigned long ms = boiler.ControlUntilTime - millis();
       unsigned int h = (ms / (60*60000));
       unsigned int m = (ms % (60*60000)) / 60000;
-      str = "boiler: Target=" + String(heating_cable.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
+      str = "boiler: Target=" + String(boiler.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
       if( t < boiler.TargetTemp){
         if(!boiler.CurrentMode){
           str += " state: Heat on."; 

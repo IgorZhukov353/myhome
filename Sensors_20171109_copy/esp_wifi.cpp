@@ -187,6 +187,8 @@ while( true ) {
 //------------------------------------------------------------------------
 void ESP_WIFI::checkIdle() // отключение в случае простоя
 {
+  return;
+  
   if(wifi_initialized && ((millis() - lastWIFISended) > (60000*2))){ // если нет передачи >= 2 мин то отключить
     espSendCommand( "AT+CWQAP" , ok_str, 5000 );
     wifi_initialized = false;
