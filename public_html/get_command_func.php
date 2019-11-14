@@ -1,5 +1,5 @@
 <?php
-// izh 2018-11-16
+// izh 2019-11-14
  
 function getCommand($hostname, $username, $password, $dbname)
 {
@@ -27,7 +27,11 @@ try
 				    }
 			    mysqli_free_result($result);
       			}
-    		} while (mysqli_next_result($link));
+      		if(mysqli_more_results($link))	
+      		    mysqli_next_result($link);
+      		else
+      		    break;
+    		} while (1);
 	}
 }
 
