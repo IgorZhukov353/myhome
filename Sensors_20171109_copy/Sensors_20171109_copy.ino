@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
- Created:       01-11-2017
+ Created:       30-11-2017
  Last changed:  04-11-2019
 */
-#define VERSION "Ver 1.92 of 4-11-2019 Igor Zhukov (C)"
+#define VERSION "Ver 1.93 of 30-11-2019 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -240,7 +240,7 @@ void sens_setup()
       continue;
     if(d.a[i].analog != true){
       pinMode(d.a[i].pin, INPUT); 
-	    digitalWrite(d.a[i].pin, d.a[i].norm_state); // подключение внутр резистора
+	    digitalWrite(d.a[i].pin, HIGH); // подключение внутр резистора
       }
     d.a[i].pre_value = d.a[i].norm_state;
     d.a[i].value = d.a[i].norm_state;
@@ -323,7 +323,7 @@ float readDallasTemp(DallasTemperature *d)
  d->requestTemperaturesByIndex(0); // Send the command to get temperatures
  for(short ii=0; ii < 10; ii++){
     ft = d->getTempCByIndex(0);
-    if( ft != -127){
+    if( ft <= -126){
        break;
        }
     delay(50);  
@@ -563,14 +563,13 @@ void responseProcessing(String response)
 // удаленная перезагрузка всех устройств
 void remoteRebootExecute(int act) 
 {
-  int pin = (act==1)?PIN24:PIN30;
-  int t = (act==1)?2000:1000 * 30;
+  int pin = (act==1)?PIN24:PIN30; // 24 - роутер; 30 - камеры, регистратор
   trace( "Rebooting...");
   pinMode(pin, OUTPUT);
   
   digitalWrite(pin, LOW);
   
-  delay(t);
+  delay(1000 * 10); // 10 сек
   digitalWrite(pin, HIGH);
   pinMode(pin, INPUT);
   
