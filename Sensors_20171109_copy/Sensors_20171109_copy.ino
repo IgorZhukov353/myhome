@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
- Created:       30-11-2017
- Last changed:  04-11-2019
+ Created:       01-11-2017
+ Last changed:  02-12-2019
 */
-#define VERSION "Ver 1.93 of 30-11-2019 Igor Zhukov (C)"
+#define VERSION "Ver 1.94 of 02-12-2019 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -323,7 +323,7 @@ float readDallasTemp(DallasTemperature *d)
  d->requestTemperaturesByIndex(0); // Send the command to get temperatures
  for(short ii=0; ii < 10; ii++){
     ft = d->getTempCByIndex(0);
-    if( ft <= -126){
+    if( ft > -126){
        break;
        }
     delay(50);  
@@ -761,7 +761,7 @@ void loop()
 
       esp.checkInitialized();
       const int CHECKED_IP = 7;
-      byte ind, a[CHECKED_IP] = {9,10,11,12,14,16,17};
+      byte ind, a[CHECKED_IP] = {9,10,15,12,14,16,17};
       
       String dopInfo = "";
       for(ind = 0; ind < CHECKED_IP; ind++){ // пинги видеорегистратора и камер
