@@ -63,7 +63,10 @@ if($row[4] == 1)
 if($row[4] == 1)
  	echo "<span style=\"color:red\">". $row[2] ."&#186;</span>";
 else 	
-    echo $row[2]. "&#186;";
+    if($row[2] == '--')
+        echo '--';
+    else
+        echo $row[2]. "&#186;";
 ?> / <?php echo ($row[3] == 0)? "--": $row[3] . "%" ?>
 </div></td>
 
