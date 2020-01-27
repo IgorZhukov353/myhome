@@ -74,7 +74,7 @@ void DallasTemperature::setOneWire(OneWire* _oneWire) {
 	devices = 0;
 	ds18Count = 0;
 	parasite = false;//true; //
-	bitResolution = 9;
+	bitResolution = 12;
 	waitForConversion = true;
 	checkForConversion = true;
 
