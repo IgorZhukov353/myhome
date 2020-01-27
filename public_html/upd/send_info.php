@@ -91,7 +91,8 @@ try {
 			if(  $id == 0)
 				break;
 			
-			$bbt->write("MyHome", "t".$id, $t); /*izh 2019-11-01*/
+			if( $t > -100) /* izh 2019-12-2 ошибка датчика */
+			    $bbt->write("MyHome", "t".$id, $t); /*izh 2019-11-01*/
 			
 			//echo "type=T id=". $id. " date=" . $date . " t=".$t . " h=".$h ."\n";
 			if ($stmt = mysqli_prepare($link, "INSERT INTO Thermometer_Info(Thermometer_ID,Temp_Value,Humidity_Value,Date) VALUES (?,?,?,?)")) {
