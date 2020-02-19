@@ -3,7 +3,7 @@
  Created:       01-11-2017
  Last changed:  19-02-2020
 */
-#define VERSION "Ver 1.95 of 27-01-2020 Igor Zhukov (C)"
+#define VERSION "Ver 1.96 of 19-02-2020 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -173,7 +173,6 @@ byte daysCounter;                       // количество дней с на
 
 int routerRebootCount = 0;              // счетчик перезагрузок роутера
 unsigned long lastRouterReboot;         // время последней перезагрузки роутера
-
 
 void blinky_check();
 void sens_check();
@@ -572,13 +571,10 @@ void responseProcessing(String response)
           DateTime dt2(date_str.c_str(),time_str.c_str());
           if(dt1.year() != dt2.year() || dt1.month() != dt2.month() || dt1.day() != dt2.day() || dt1.hour() != dt2.hour() || dt1.minute() != dt2.minute() || dt1.second() != dt2.second() ){
             RTC.adjust(dt2);
+            esp.addEvent2Buffer(9, str);
           }
         }
-        
     }
-  }
-  else{
-    
   }
 }
 
@@ -754,12 +750,16 @@ void sendBuffer2Site_check()
 }
 
 //------------------------------------------------------------------------
-void checkPump_check()
+void checkPump_check() // запускается один раз в час
 {
  DateTime now = RTC.now();  
  if(now.hour() == 5 && d.a[6].value == 1){ // в 5 утра если установлен датчик уровня -> включить насос
     responseProcessing("command=pump;15;");
     }
+ else
+ if(now.hour() == 0){
+  esp.send2site("get_date.php"); // в 23 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
+ }
 }
 
 //------------------------------------------------------------------------
