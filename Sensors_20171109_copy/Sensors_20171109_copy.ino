@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  27-01-2020
+ Last changed:  19-02-2020
 */
 #define VERSION "Ver 1.95 of 27-01-2020 Igor Zhukov (C)"
 
@@ -555,7 +555,30 @@ void responseProcessing(String response)
           pinMode(PIN27, OUTPUT);
           digitalWrite(PIN27, HIGH); // пока выключено
         }  
+      else  
+      if(cmd == "setdatetime"){ // izh 19-02-2020 проверка местного времени, если надо корректировка
+          str = "datetime: check& corr.";
+          trace( str); 
+          //esp.addEvent2Buffer(8, str);
+          
+          ind2 += 1;
+          ind = response.indexOf(";", ind2);
+          String date_str = response.substring(ind2, ind);  
+          ind += 1;
+          ind2 = response.indexOf(";", ind);
+          String time_str = response.substring(ind, ind2);
+          trace( date_str + " " + time_str); 
+          DateTime dt1(RTC.now());  
+          DateTime dt2(date_str.c_str(),time_str.c_str());
+          if(dt1.year() != dt2.year() || dt1.month() != dt2.month() || dt1.day() != dt2.day() || dt1.hour() != dt2.hour() || dt1.minute() != dt2.minute() || dt1.second() != dt2.second() ){
+            RTC.adjust(dt2);
+          }
+        }
+        
     }
+  }
+  else{
+    
   }
 }
 
@@ -761,7 +784,7 @@ void loop()
 
       esp.checkInitialized();
       const int CHECKED_IP = 7;
-      byte ind, a[CHECKED_IP] = {9,10,15,12,14,16,17};
+      byte ind, a[CHECKED_IP] = {9,10,15,12,16,17,18};
       
       String dopInfo = "";
       for(ind = 0; ind < CHECKED_IP; ind++){ // пинги видеорегистратора и камер
