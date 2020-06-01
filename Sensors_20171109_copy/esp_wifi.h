@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  01-04-2019
+ Last changed:  24-05-2020
 */
 class ESP_WIFI {
 //protected:  
@@ -11,7 +11,11 @@ class ESP_WIFI {
   bool wifi_initialized = false;
   unsigned long lastWIFISended;
   short sendErrorCounter;
+  short dnsFailCounter;
+  bool dnsFail;
   short routerConnectErrorCounter;
+  int routerRebootCount = 0;              // счетчик перезагрузок роутера
+  unsigned long lastRouterReboot;         // время последней перезагрузки роутера
 
   int sendErrorCounter_ForAll;
   unsigned long sendCounter_ForAll;
@@ -33,4 +37,6 @@ class ESP_WIFI {
   void checkIdle(); // отключение в случае простоя
   bool checkInitialized();
   void check_Wait_Internet();
+  void closeConnect();
+  bool sendError_check();
 };

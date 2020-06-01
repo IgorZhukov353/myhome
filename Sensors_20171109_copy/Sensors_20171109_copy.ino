@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  19-02-2020
+ Last changed:  01-06-2020
 */
-#define VERSION "Ver 1.96 of 19-02-2020 Igor Zhukov (C)"
+#define VERSION "Ver 1.99 of 01-06-2020 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -122,7 +122,8 @@ byte on;
 byte pin; 
 unsigned long change_time; 
 bool analog; 
-bool check_for_any_status;
+bool check_for_any_status;  // проверять при любом статусе системы
+bool status_led_no_change;  // при изменении статуса датчика не менять состояние светодиода
 } alarm_info;
 
 struct DATA {
@@ -131,13 +132,13 @@ struct DATA {
       byte ledState;
       byte tmp_value;
       alarm_info a[MAX_ALARMS] = {
-        {1,0,0, LOW, ALARM_ON, 6,0,false,false},  //pir1
-        {2,0,0, LOW, ALARM_ON, 5,0,false,false},  //pir2 гараж
-        {3,0,0, HIGH,ALARM_ON, 7,0,false,false},  //дверь № 1 
-        {4,0,0, HIGH,ALARM_ON, 8,0,false,false},  //дверь № 2 
-        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true},   // наличие питания 
-        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false},  //pir3 кухня
-        {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true}   //уровень в дрен колодце
+        {1,0,0, LOW, ALARM_ON, 6,0,false,false,false},  //pir1
+        {2,0,0, LOW, ALARM_ON, 5,0,false,false,false},  //pir2 гараж
+        {3,0,0, HIGH,ALARM_ON, 7,0,false,false,false},  //дверь № 1 
+        {4,0,0, HIGH,ALARM_ON, 8,0,false,false,false},  //дверь № 2 
+        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true,false},   // наличие питания 
+        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false,false},  //pir3 кухня
+        {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true,true}   //уровень в дрен колодце
         };
     };
   } d;
@@ -171,9 +172,6 @@ bool watchDogOK_Sended2BD = 0;          // признак отправки де�
 unsigned long lastWatchDogOK_Sended2BD;      // время отправки дежурного пакета в БД
 byte daysCounter;                       // количество дней с начала работы (отслеживание перехода через 50 дней)
 
-int routerRebootCount = 0;              // счетчик перезагрузок роутера
-unsigned long lastRouterReboot;         // время последней перезагрузки роутера
-
 void blinky_check();
 void sens_check();
 void temp_check();
@@ -190,7 +188,7 @@ Activity tempHum(TEMP_TIMEOUT,temp_check);
 Activity readCommand(COMMAND_TIMEOUT,command_check);
 Activity remoteTermostat(BOILER_TIMEOUT,remoteTermostat_check);
 Activity sendError(COMMAND_TIMEOUT,sendError_check); 
-Activity sendBuffer2Site(1000,sendBuffer2Site_check); // передача буфера информации раз в секунду (если есть что)
+Activity sendBuffer2Site(1000,sendBuffer2Site_check); // передача буфера информации раз в 1 секунду (если есть что)
 Activity checkPump(((60000 * 60)),checkPump_check); 
 
 //------------------------------------------------------------------------
@@ -286,8 +284,11 @@ void sens_check()
 	  short new_ledInterval = 1000;
 	 
 	  for(byte i=0; i<MAX_ALARMS; i++){
-		   if(d.a[i].on == ALARM_OFF || (!d.sysState && !d.a[i].check_for_any_status)) // не активен или проверка датчиков отключена и датчик можно не проверять
+		   if(d.a[i].on == ALARM_OFF                            // не активен 
+		      || (!d.sysState && !d.a[i].check_for_any_status)  // проверка датчиков отключена и датчик можно не проверять
+		      || d.a[i].status_led_no_change == true)           // при изменении статуса датчика не менять состояние светодиода
         continue;
+
 		   if(d.a[i].change_time != 0){
 			  new_ledInterval = state_led_blink.timeout;
 			  break;  
@@ -429,9 +430,11 @@ void responseProcessing(String response)
 {
   String str;
   short ind = response.indexOf("command="); // признак команды
+  short ind2;
+  
   if(ind >= 0){
     ind += 8; // длина признака команды
-    short ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
+    ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
     if(ind2 >= 0){
       String cmd = response.substring(ind, ind2);
       str = "Command processing=" + cmd;  
@@ -576,6 +579,23 @@ void responseProcessing(String response)
         }
     }
   }
+  else{
+    ind = response.indexOf("error="); // признак ошибки
+    if(ind >= 0){
+      ind += 6; // длина признака ошибки
+      ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
+      if(ind2 >= 0){
+        String errMsg = response.substring(ind, ind2);
+        //str = "Error processing=" + errMsg;  
+        //trace( str);   
+
+        if(errMsg == "DNS Fail"){ // izh 22-05-2020 обработка ошибки DNS 
+          esp.dnsFailCounter++;
+          esp.dnsFail = 1;
+        }
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------
@@ -613,7 +633,7 @@ int pinVal = 1;
   if(accum_DC_V < 0.09) {
     accum_DC_V=0.0;  //statement to quash undesired reading !
   }
-  trace("VIN=" + String(accum_DC_V));
+  //trace("VIN=" + String(accum_DC_V));
 }
   
 //------------------------------------------------------------------------
@@ -732,14 +752,13 @@ void remoteTermostat_check()
 // проверка наличия пакета ошибок передач по WIFI если надо - попытка перезагрузки, запуск раз в 10 мин
 void sendError_check() 
 {
-  trace( "SendErrorCounter=" + String(esp.sendErrorCounter) + " RouterConnectErrorCounter=" + String(esp.routerConnectErrorCounter));
-  if(esp.sendErrorCounter > 3){
-    bool res = esp.espSendCommand( "AT+PING=\"192.168.0.1\"" , (char*)"OK" , 5000); // попытка пингануть роутер
-    if(res || millis() - lastRouterReboot > WATCHDOG_TIMEOUT ){ // если он жив, то проблема с доступом в Инет, перегрузить роутер или пропал WIFI (но не чаще чем в 1 час)
-      lastRouterReboot = millis();
-      remoteRebootExecute(1);
-      routerRebootCount++;
-      }
+/*
+  trace("Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + 
+                 " DNSErr=" + String(esp.dnsFailCounter) + 
+                 " RR="  + String(routerRebootCount));
+*/                 
+  if(esp.sendError_check()){
+    remoteRebootExecute(1);
     }
 }
 
@@ -778,18 +797,17 @@ void loop()
  checkPump.checkActivated();
 
  unsigned long t = millis();
- if( (t % WATCHDOG_TIMEOUT) < 10000){ // регулярная отправка дежурного сообщения ( раз в час )
+ if( lastWatchDogOK_Sended2BD == 0 // первая проверка
+      || (t % WATCHDOG_TIMEOUT) < 10000){ // регулярная отправка дежурного сообщения ( раз в час )
     if(!watchDogOK_Sended2BD){
       watchDogOK_Sended2BD = true;
 
       esp.checkInitialized();
       const int CHECKED_IP = 7;
-      byte ind, a[CHECKED_IP] = {9,10,15,12,16,17,18};
+      byte ind, a[CHECKED_IP] = {9,10,14,15,17,18,19};
       
       String dopInfo = "";
       for(ind = 0; ind < CHECKED_IP; ind++){ // пинги видеорегистратора и камер
-        //String str = (esp.espSendCommand( "AT+PING=\"192.168.0." + String(a[ind]) + "\"" , (char*)"OK" , 5000 ))? "ok":"failed";
-        //dopInfo += String(a[ind]) + ":" + str + ";"; // json экранирование ":" -> \\u003A
         if(!esp.espSendCommand( "AT+PING=\"192.168.0." + String(a[ind]) + "\"" , (char*)"OK" , 5000 )){
           if(dopInfo != "")
             dopInfo += ",";
@@ -799,7 +817,8 @@ void loop()
       if(dopInfo != "")
         dopInfo = "PingErr:" + dopInfo + " ";
       dopInfo += "Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + 
-                 " RR="  + String(routerRebootCount) + "(" + String((t - lastRouterReboot) / (60*60000)) + "h.)";
+                 " DNSErr=" + String(esp.dnsFailCounter) + 
+                 " RR="  + String(esp.routerRebootCount) + "(" + String((t - esp.lastRouterReboot) / (60*60000)) + "h.)";
 
       unsigned int d = t/(24*60*60000);
       unsigned int h = (t%(24*60*60000)) / (60*60000);

@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  28-10-2018
+ Last changed:  01-06-2020
 */
 
 #include "Arduino.h"
@@ -24,7 +24,8 @@ str=[{"type":"S","id":1,"v":1},{"type":"T","id":1,"temp":12,"hum":80},{"type":"E
 */     
   
 //const String WSSID = "TP-LINK_B3D2";    // Нахим
-const String WSSID = "TP-LINK_FA82EC";    // Дом
+const String WSSID1 = "TP-LINK_FA82EC";    // Дом
+const String WSSID_PROG = "WIFI353";    // программный WIFI на mini-pc
 const String WPASS  = "tgbvgy789";
 //const String HOST_STR = "igorzhukov353.000webhostapp.com";
 //const String HOST_STR = "24683.databor.pw";
@@ -36,12 +37,14 @@ const char *HOST_STR = "igorzhukov353.h1n.ru";
 const char *ok_str = (char*)"OK";
 
 #define ESP_Serial Serial1 // для МЕГИ
+String curWSSID;
 
 //------------------------------------------------------------------------
 ESP_WIFI::ESP_WIFI()
 {
 wifi_initialized = false;
 sendErrorCounter = 0;
+curWSSID = WSSID_PROG;
 }
 
 //------------------------------------------------------------------------
@@ -62,7 +65,7 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
   String cmd1 = "AT+CIPSTART=\"TCP\",\"" + String(HOST_STR) +"\",80";
   String request = (postBuf == "")? 
     "GET /"  + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\n" :
-    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";
+    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";    
 //    "GET /" + reqStr + "?" + postBuf + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n";
 
   short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
@@ -72,13 +75,20 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
   for(short i=0; i<3; i++){
       r = espSendCommand( cmd1 , ok_str , 15000 );  // установить соединение с хостом (3 попытки)
       if(!r){
+/*        if(dnsFail and !r2){
+           closeConnect(); 
+           checkInitialized();
+           dnsFail = 0;
+           r2++;
+          }
+*/          
         delay(1000);
         continue;
       }
       r = espSendCommand( cmd2 , ok_str , 5000 );             // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
       r = espSendCommand( request , (char*)"CLOSED" , 15000 );  // отослать запрос и получить ответ
-//      r = espSendCommand("AT+CIPCLOSE", ok_str , 5000 );
+      //espSendCommand("AT+CIPCLOSE", ok_str , 5000 );
       break;
   }
   if(!r){
@@ -118,9 +128,16 @@ r = espSendCommand( "ATE0" , ok_str , 5000 );
 delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
 r = espSendCommand( "AT+CIFSR" , ok_str , 5000 );
 r = espSendCommand( "AT+CWMODE=1" , ok_str , 5000 );
-r = espSendCommand( "AT+CWJAP=\""+WSSID+"\",\""+WPASS+"\"" , ok_str , 7000 );
-if(!r)
-  routerConnectErrorCounter++; 
+r = espSendCommand( "AT+CWJAP=\"" + curWSSID + "\",\""+WPASS+"\"" , ok_str , 20000 );
+if(!r){
+  if(curWSSID == WSSID_PROG){
+    curWSSID = WSSID1;  
+    routerConnectErrorCounter = 0;
+    r = espSendCommand( "AT+CWJAP=\"" + curWSSID + "\",\""+WPASS+"\"" , ok_str , 20000 );
+    if(!r)
+      routerConnectErrorCounter++; 
+  }
+}
 else
   routerConnectErrorCounter = 0;
 return r;
@@ -177,6 +194,7 @@ while( true ) {
             response += String(c);
           }
         trace("RESPONSE: " + response + "\n\r---END RESPONSE---");
+        responseProcessing("error=" + response + ";");
         return false;
       }  
     }
@@ -187,12 +205,10 @@ while( true ) {
 //------------------------------------------------------------------------
 void ESP_WIFI::checkIdle() // отключение в случае простоя
 {
-  return;
+  return; // izh 23-05-2020 отключено
   
   if(wifi_initialized && ((millis() - lastWIFISended) > (60000*2))){ // если нет передачи >= 2 мин то отключить
-    espSendCommand( "AT+CWQAP" , ok_str, 5000 );
-    wifi_initialized = false;
-    esp_power_switch(false);
+    closeConnect();
   }
 }
 
@@ -258,4 +274,51 @@ void ESP_WIFI::check_Wait_Internet()
     tnow = millis();
     delay(10000);
     }
+}
+
+//------------------------------------------------------------------------
+void ESP_WIFI::closeConnect()
+{
+  if(wifi_initialized){
+    espSendCommand( "AT+CWQAP" , ok_str, 5000 );
+    wifi_initialized = false;
+    //esp_power_switch(false);
+  }  
+}
+
+//------------------------------------------------------------------------
+bool ESP_WIFI::sendError_check()
+{
+  trace( "WSSID=" + curWSSID + " SendErrorCounter=" + String(sendErrorCounter) + " RouterConnectErrorCounter=" + String(routerConnectErrorCounter));
+  if(sendErrorCounter > 3){
+    bool res;
+    short retry = 0;
+    while(retry < 2){
+      res = espSendCommand("AT+PING=\""+ String(HOST_STR) +"\"" , (char*)"OK" , 5000); // попытка пингануть свой сервер
+      if(res){ // все наладилось
+        sendErrorCounter = 0;
+        return 0;
+      }
+      if(curWSSID == WSSID_PROG){ // переключиться на роутер
+        closeConnect();
+        curWSSID = WSSID1;
+        espSerialSetup();  
+      }
+      else
+        if(dnsFail){ // переключиться на программный роутер
+          closeConnect();
+          curWSSID = WSSID_PROG;
+          espSerialSetup();  
+        }
+      retry++;
+    }
+    res = espSendCommand( "AT+PING=\"192.168.0.1\"" , (char*)"OK" , 5000); // попытка пингануть роутер
+    if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если он жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
+      closeConnect(); // izh 22-05-2020 отключить от WIFI
+      lastRouterReboot = millis();
+      routerRebootCount++;
+      return 1;
+      }
+    }
+  return 0;
 }
