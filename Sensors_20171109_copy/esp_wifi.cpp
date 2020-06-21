@@ -24,8 +24,8 @@ str=[{"type":"S","id":1,"v":1},{"type":"T","id":1,"temp":12,"hum":80},{"type":"E
 */     
   
 //const String WSSID = "TP-LINK_B3D2";    // Нахим
-const String WSSID1 = "TP-LINK_FA82EC";    // Дом
-const String WSSID_PROG = "WIFI353";    // программный WIFI на mini-pc
+const String WSSID = "TP-LINK_FA82EC";    // Дом
+//const String WSSID_PROG = "WIFI353";    // программный WIFI на mini-pc
 const String WPASS  = "tgbvgy789";
 //const String HOST_STR = "igorzhukov353.000webhostapp.com";
 //const String HOST_STR = "24683.databor.pw";
@@ -33,18 +33,20 @@ const String WPASS  = "tgbvgy789";
 //const String HOST_STR = "santalov.ru";
 //const String HOST_STR = "f0195241.xsph.ru";
 const char *HOST_STR = "igorzhukov353.h1n.ru"; 
+const char *HOST_IP_STR = "145.239.233.78"; 
+//const char *HOST_IP_STR = "igorzhukov353.h1n.ru";
 
 const char *ok_str = (char*)"OK";
 
 #define ESP_Serial Serial1 // для МЕГИ
-String curWSSID;
+//String curWSSID;
 
 //------------------------------------------------------------------------
 ESP_WIFI::ESP_WIFI()
 {
 wifi_initialized = false;
 sendErrorCounter = 0;
-curWSSID = WSSID_PROG;
+//curWSSID = WSSID_PROG;
 }
 
 //------------------------------------------------------------------------
@@ -62,7 +64,7 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
 			return false;
 		}
 
-  String cmd1 = "AT+CIPSTART=\"TCP\",\"" + String(HOST_STR) +"\",80";
+  String cmd1 = "AT+CIPSTART=\"TCP\",\"" + String(HOST_IP_STR) +"\",80";
   String request = (postBuf == "")? 
     "GET /"  + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\n" :
     "POST /" + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";    
@@ -128,8 +130,9 @@ r = espSendCommand( "ATE0" , ok_str , 5000 );
 delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
 r = espSendCommand( "AT+CIFSR" , ok_str , 5000 );
 r = espSendCommand( "AT+CWMODE=1" , ok_str , 5000 );
-r = espSendCommand( "AT+CWJAP=\"" + curWSSID + "\",\""+WPASS+"\"" , ok_str , 20000 );
+r = espSendCommand( "AT+CWJAP=\"" + WSSID + "\",\""+WPASS+"\"" , ok_str , 20000 );
 if(!r){
+/*
   if(curWSSID == WSSID_PROG){
     curWSSID = WSSID1;  
     routerConnectErrorCounter = 0;
@@ -137,6 +140,8 @@ if(!r){
     if(!r)
       routerConnectErrorCounter++; 
   }
+*/  
+  routerConnectErrorCounter++; 
 }
 else
   routerConnectErrorCounter = 0;
@@ -194,7 +199,12 @@ while( true ) {
             response += String(c);
           }
         trace("RESPONSE: " + response + "\n\r---END RESPONSE---");
-        responseProcessing("error=" + response + ";");
+        
+        if(response.startsWith("DNS Fail")){ // izh 2-06-2020 обработка ошибки DNS 
+          dnsFailCounter++;
+          dnsFail = 1;
+        }
+        //responseProcessing("error=" + response + ";");
         return false;
       }  
     }
@@ -269,7 +279,7 @@ void ESP_WIFI::check_Wait_Internet()
    unsigned long tstart, tnow, timeout = 1000 * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
    tnow, tstart = millis();
    while(tnow < tstart + timeout ){
-    if(espSendCommand("AT+PING=\""+ String(HOST_STR) +"\"" , (char*)"OK" , 5000 ))
+    if(espSendCommand("AT+PING=\""+ String(HOST_IP_STR) +"\"" , (char*)"OK" , 5000 ))
       break;
     tnow = millis();
     delay(10000);
@@ -282,24 +292,28 @@ void ESP_WIFI::closeConnect()
   if(wifi_initialized){
     espSendCommand( "AT+CWQAP" , ok_str, 5000 );
     wifi_initialized = false;
-    //esp_power_switch(false);
+    esp_power_switch(false);
   }  
 }
 
 //------------------------------------------------------------------------
 bool ESP_WIFI::sendError_check()
 {
-  trace( "WSSID=" + curWSSID + " SendErrorCounter=" + String(sendErrorCounter) + " RouterConnectErrorCounter=" + String(routerConnectErrorCounter));
+  trace( "WSSID=" + WSSID + " SErr=" + String(sendErrorCounter) + " RCErr=" + String(routerConnectErrorCounter) + " DNSErr=" + String(dnsFailCounter));
   if(sendErrorCounter > 3){
     bool res;
-    short retry = 0;
-    while(retry < 2){
-      res = espSendCommand("AT+PING=\""+ String(HOST_STR) +"\"" , (char*)"OK" , 5000); // попытка пингануть свой сервер
+//    short retry = 0;
+//    while(retry < 2){
+      res = espSendCommand("AT+PING=\""+ String(HOST_IP_STR) +"\"" , (char*)"OK" , 15000); // попытка пингануть свой сервер
       if(res){ // все наладилось
         sendErrorCounter = 0;
+        dnsFail = 0;
         return 0;
-      }
-      if(curWSSID == WSSID_PROG){ // переключиться на роутер
+        }
+//      closeConnect();
+//      curWSSID = WSSID_PROG;
+//      espSerialSetup();
+/*      if(curWSSID == WSSID_PROG){ // переключиться на роутер
         closeConnect();
         curWSSID = WSSID1;
         espSerialSetup();  
@@ -310,8 +324,9 @@ bool ESP_WIFI::sendError_check()
           curWSSID = WSSID_PROG;
           espSerialSetup();  
         }
-      retry++;
-    }
+*/        
+//      retry++;
+//    }
     res = espSendCommand( "AT+PING=\"192.168.0.1\"" , (char*)"OK" , 5000); // попытка пингануть роутер
     if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если он жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
       closeConnect(); // izh 22-05-2020 отключить от WIFI

@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  01-06-2020
+ Last changed:  02-06-2020
 */
 #define VERSION "Ver 1.99 of 01-06-2020 Igor Zhukov (C)"
 
@@ -210,6 +210,8 @@ int memoryFree()
 //------------------------------------------------------------------------
 void setup() 
 {
+   trace(VERSION);
+  
    Wire.begin();
    RTC.begin();
     
@@ -221,8 +223,7 @@ void setup()
    sens_setup();
    dallasTemp[0].begin();
    dallasTemp[1].begin();
-   
-   trace(VERSION);
+
    esp.check_Wait_Internet(); 
      
    esp.addEvent2Buffer(1,"");
@@ -241,7 +242,7 @@ void sens_setup()
       }
     d.a[i].pre_value = d.a[i].norm_state;
     d.a[i].value = d.a[i].norm_state;
-    //trace("Sens init! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value)+ " v2=" + String(d.a[i].pre_value)); 
+    trace("Sens init! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value)+ " v2=" + String(d.a[i].pre_value)); 
     }
 }
 	
@@ -262,6 +263,7 @@ void sens_check()
        else
         d.tmp_value = 0; 
       }
+      //trace("Sens check! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value));
 
 		 if( d.tmp_value != d.a[i].pre_value){
 			  d.a[i].pre_value = d.tmp_value;
@@ -286,7 +288,8 @@ void sens_check()
 	  for(byte i=0; i<MAX_ALARMS; i++){
 		   if(d.a[i].on == ALARM_OFF                            // не активен 
 		      || (!d.sysState && !d.a[i].check_for_any_status)  // проверка датчиков отключена и датчик можно не проверять
-		      || d.a[i].status_led_no_change == true)           // при изменении статуса датчика не менять состояние светодиода
+		      || d.a[i].status_led_no_change == true           // при изменении статуса датчика не менять состояние светодиода
+         )
         continue;
 
 		   if(d.a[i].change_time != 0){
@@ -579,23 +582,24 @@ void responseProcessing(String response)
         }
     }
   }
+/*  
   else{
-    ind = response.indexOf("error="); // признак ошибки
-    if(ind >= 0){
-      ind += 6; // длина признака ошибки
+    if(response.startsWith("error=")){ // признак ошибки)
+      ind = 6; // длина признака ошибки
       ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
       if(ind2 >= 0){
         String errMsg = response.substring(ind, ind2);
         //str = "Error processing=" + errMsg;  
         //trace( str);   
 
-        if(errMsg == "DNS Fail"){ // izh 22-05-2020 обработка ошибки DNS 
+        if(errMsg.startsWith("DNS Fail")){ // izh 22-05-2020 обработка ошибки DNS 
           esp.dnsFailCounter++;
           esp.dnsFail = 1;
         }
       }
     }
   }
+*/  
 }
 
 //------------------------------------------------------------------------
@@ -758,7 +762,7 @@ void sendError_check()
                  " RR="  + String(routerRebootCount));
 */                 
   if(esp.sendError_check()){
-    remoteRebootExecute(1);
+    // remoteRebootExecute(1);
     }
 }
 
