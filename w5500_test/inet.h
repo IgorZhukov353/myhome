@@ -1,14 +1,18 @@
 /* 
  Igor Zhukov (c)
- Created:       04-06-2019
- Last changed:  04-06-2019
+ Created:       21-06-2019
+ Last changed:  21-06-2019
 */
 
 class inet_sender {
+//protected:  
+public:
  virtual bool init()=0;
  virtual bool connect(const char *host, uint16_t port)=0;	
  virtual int available()=0;
- virtual int read()=0;
+ virtual char* read()=0;
+ virtual void close()=0;
+ virtual bool ping(const char *host)=0;
 };
 
 class inet {
@@ -33,6 +37,10 @@ class inet {
   virtual bool send2site(String reqStr);
   virtual bool _send2site(String reqStr, String postBuf);
 
+  virtual void closeConnect();
+  virtual bool sendError_check();
+  virtual bool ping(String host);
+
   void addEvent2Buffer(short id, String msgText);
   void addTempHum2Buffer(short id, short temp, short hum);
   void addSens2Buffer(short id, short val);
@@ -42,4 +50,6 @@ class inet {
   void checkIdle(); // отключение в случае простоя
   bool checkInitialized();
   void check_Wait_Internet();
+
+
 };
