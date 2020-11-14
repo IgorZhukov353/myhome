@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  02-06-2020
+ Last changed:  14-11-2020
 */
-#define VERSION "Ver 1.99 of 01-06-2020 Igor Zhukov (C)"
+#define VERSION "Ver 1.100 of 14-11-2020 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -170,7 +170,7 @@ unsigned long boilerControlUntilTime;   // управлять котлом до 
 */
 bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
 unsigned long lastWatchDogOK_Sended2BD;      // время отправки дежурного пакета в БД
-byte daysCounter;                       // количество дней с начала работы (отслеживание перехода через 50 дней)
+short timerResetCounter;                       // количество сбросов таймера с начала работы (отслеживание перехода через 50 дней)
 
 void blinky_check();
 void sens_check();
@@ -807,8 +807,8 @@ void loop()
       watchDogOK_Sended2BD = true;
 
       esp.checkInitialized();
-      const int CHECKED_IP = 7;
-      byte ind, a[CHECKED_IP] = {9,10,14,15,17,18,19};
+      const int CHECKED_IP = 6;
+      byte ind, a[CHECKED_IP] = {9,15,18,20,21,22};//{9,14,15,17,18,20};//{9,10,14,15,17,18,19};
       
       String dopInfo = "";
       for(ind = 0; ind < CHECKED_IP; ind++){ // пинги видеорегистратора и камер
@@ -821,7 +821,7 @@ void loop()
       if(dopInfo != "")
         dopInfo = "PingErr:" + dopInfo + " ";
       dopInfo += "Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + 
-                 " DNSErr=" + String(esp.dnsFailCounter) + 
+      //           " DNSErr=" + String(esp.dnsFailCounter) + 
                  " RR="  + String(esp.routerRebootCount) + "(" + String((t - esp.lastRouterReboot) / (60*60000)) + "h.)";
 
       unsigned int d = t/(24*60*60000);
@@ -829,10 +829,12 @@ void loop()
       trace( "Watchdog=" + String(t) + dopInfo);
       
       if(lastWatchDogOK_Sended2BD > t){
-       daysCounter += 50;
+       timerResetCounter++;
       }
-      d += daysCounter;
-      lastWatchDogOK_Sended2BD = t;
+      d += timerResetCounter * 49;
+      h += timerResetCounter * 17;
+      
+      lastWatchDogOK_Sended2BD = ( t == 0)? 1:t;
       
       //esp.send2site("send_mail.php"); /*izh 17-03-2018 раз в час проверить срабатывание датчиков и температуры */
 

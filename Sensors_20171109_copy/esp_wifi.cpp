@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  01-06-2020
+ Last changed:  24-06-2020
 */
 
 #include "Arduino.h"
@@ -24,7 +24,8 @@ str=[{"type":"S","id":1,"v":1},{"type":"T","id":1,"temp":12,"hum":80},{"type":"E
 */     
   
 //const String WSSID = "TP-LINK_B3D2";    // Нахим
-const String WSSID = "TP-LINK_FA82EC";    // Дом
+//const String WSSID = "TP-LINK_FA82EC";    // Дом
+const String WSSID = "Keenetic-7832";
 //const String WSSID_PROG = "WIFI353";    // программный WIFI на mini-pc
 const String WPASS  = "tgbvgy789";
 //const String HOST_STR = "igorzhukov353.000webhostapp.com";
