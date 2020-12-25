@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  14-11-2020
+ Last changed:  19-12-2020
 */
-#define VERSION "Ver 1.100 of 14-11-2020 Igor Zhukov (C)"
+#define VERSION "Ver 1.101 of 19-12-2020 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -60,10 +60,10 @@
 
 #define PIN30	30    // Свободный вход реле INT4 - перезагрузка камер, регистратора
 #define PIN31	31    // Реле питания греющего кабеля водяных труб в подполе INT1 (Реле №2 в ванной)
-#define PIN32	32    // Датчик температуры DS18B20 водяных труб в подполе (через макетную плату Белый)
+#define PIN32	32    // Датчик температуры DS18B20 в септике (через макетную плату Белый)
 #define PIN33	33    // Наличие питания ~220 V (внешнее питание 5 V через доп блок питания)
-#define PIN34	34    // Датчик температуры DS18B20 в септике
-#define PIN35	35
+#define PIN34	34    // Датчик температуры (площадка 2 этаж)
+#define PIN35	35    // PIR 4 (Движение площадка 2 этаж)
 #define PIN36	36
 #define PIN37	37
 #define PIN38	38
@@ -93,13 +93,13 @@ ESP_WIFI    esp; // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 
-OneWire oneWire[2] = {OneWire(PIN12),OneWire(PIN32)}; // этот будет 12 // этот будет 34
+OneWire oneWire[3] = {OneWire(PIN12),OneWire(PIN32),OneWire(PIN34)}; // 
 
 // Pass our oneWire reference to Dallas Temperature. 
-DallasTemperature dallasTemp[2] = {DallasTemperature(&oneWire[0]),DallasTemperature(&oneWire[1])};
+DallasTemperature dallasTemp[3] = {DallasTemperature(&oneWire[0]),DallasTemperature(&oneWire[1]),DallasTemperature(&oneWire[2])};
 
 DHT dht[3] = {DHT(PIN2, DHT22), DHT(PIN3, DHT22), DHT(PIN4, DHT22)};
-short prevTemp[5] = {-100,-100,-100,-100,-100}, prevHum[5];      // последние показания датчика температуры и влажности
+short prevTemp[6] = {-100,-100,-100,-100,-100,-100}, prevHum[6];      // последние показания датчика температуры и влажности
 
 #define state_led_pin 		  PIN13
 #define SENS_CHECK_TIMEOUT 	100
@@ -109,7 +109,7 @@ short prevTemp[5] = {-100,-100,-100,-100,-100}, prevHum[5];      // послед
 #define COMMAND_TIMEOUT     (60000 * 10)
 #define BOILER_TIMEOUT      (60000 * 1)
 
-#define MAX_ALARMS 	7
+#define MAX_ALARMS 	8
 #define ALARM_ON 	  1
 #define ALARM_OFF 	0
 
@@ -132,13 +132,14 @@ struct DATA {
       byte ledState;
       byte tmp_value;
       alarm_info a[MAX_ALARMS] = {
-        {1,0,0, LOW, ALARM_ON, 6,0,false,false,false},  //pir1
-        {2,0,0, LOW, ALARM_ON, 5,0,false,false,false},  //pir2 гараж
-        {3,0,0, HIGH,ALARM_ON, 7,0,false,false,false},  //дверь № 1 
-        {4,0,0, HIGH,ALARM_ON, 8,0,false,false,false},  //дверь № 2 
+        {1,0,0, LOW, ALARM_ON, PIN6,0,false,false,false},  //pir1
+        {2,0,0, LOW, ALARM_ON, PIN5,0,false,false,false},  //pir2 гараж
+        {3,0,0, HIGH,ALARM_ON, PIN7,0,false,false,false},  //дверь № 1 
+        {4,0,0, HIGH,ALARM_ON, PIN8,0,false,false,false},  //дверь № 2 
         {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true,false},   // наличие питания 
-        {6,0,0, LOW ,ALARM_OFF, 9,0,false,false,false},  //pir3 кухня
-        {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true,true}   //уровень в дрен колодце
+        {6,0,0, LOW ,ALARM_OFF, PIN9,0,false,false,false},  //pir3 кухня
+        {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true,true},   //уровень в дрен колодце
+        {8,0,0, LOW ,ALARM_ON, PIN35,0,false,false,false}  //pir4 площадка 2 этаж
         };
     };
   } d;
@@ -221,8 +222,9 @@ void setup()
    digitalWrite(state_led_pin, d.ledState);
     
    sens_setup();
-   dallasTemp[0].begin();
-   dallasTemp[1].begin();
+   for(short i=0;i<3;i++){
+	  dallasTemp[i].begin();
+   }
 
    esp.check_Wait_Internet(); 
      
@@ -341,7 +343,7 @@ void temp_check()
     // считанные показания могут отличаться от актуальных примерно на 2 секунды (это очень медленный датчик)
     
     short h,t;
-    for(short i=0; i<5; i++){
+    for(short i=0; i<6; i++){
       if(i < 3){
         h = round(dht[i].readHumidity());
         if(dht[i].state == false){
@@ -478,21 +480,21 @@ void responseProcessing(String response)
           pump.ControlUntilTime = 0;
       }
       else
-      if(cmd == "fan"){
-          trace( "fan init." );
-          ind2 += 1;
-          ind = response.indexOf(";", ind2);
-          fan.ControlUntilTime = atoi(response.substring(ind2, ind).c_str());  
-          if( !fan.ControlUntilTime){
-            trace( "Error fan period reading!");  
-            return;
-            }
-          fan.ControlUntilTime = millis() + fan.ControlUntilTime * 60000;  // в минутах
-          fan.ControlOn = true;
-          pinMode(PIN25, OUTPUT);
-          digitalWrite(PIN25, LOW);
-      }
-      else
+//      if(cmd == "fan"){
+//          trace( "fan init." );
+//          ind2 += 1;
+//          ind = response.indexOf(";", ind2);
+//          fan.ControlUntilTime = atoi(response.substring(ind2, ind).c_str());  
+//          if( !fan.ControlUntilTime){
+//            trace( "Error fan period reading!");  
+//            return;
+//            }
+//          fan.ControlUntilTime = millis() + fan.ControlUntilTime * 60000;  // в минутах
+//          fan.ControlOn = true;
+//          pinMode(PIN25, OUTPUT);
+//          digitalWrite(PIN25, LOW);
+//      }
+//      else
       if(cmd == "pump"){
           trace( "pump init." );
           ind2 += 1;
@@ -727,7 +729,7 @@ void remoteTermostat_check()
         return;      
       }
 
-      double t = readDallasTemp(&dallasTemp[0]);
+      double t = readDallasTemp(&dallasTemp[1]);
       unsigned long ms = heating_cable.ControlUntilTime - millis();
       unsigned int h = (ms / (60*60000));
       unsigned int m = (ms % (60*60000)) / 60000;
@@ -788,7 +790,9 @@ void checkPump_check() // запускается один раз в час
 //------------------------------------------------------------------------
 void loop() 
 {
-// return;
+  //temp_check();
+  //sens.checkActivated();
+  //return;
   
  esp.checkIdle();
  sendError.checkActivated();
