@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  24-06-2020
+ Last changed:  25-12-2020
 */
 
 #include "Arduino.h"
@@ -301,35 +301,21 @@ void ESP_WIFI::closeConnect()
 bool ESP_WIFI::sendError_check()
 {
   trace( "WSSID=" + WSSID + " SErr=" + String(sendErrorCounter) + " RCErr=" + String(routerConnectErrorCounter) + " DNSErr=" + String(dnsFailCounter));
-  if(sendErrorCounter > 3){
-    bool res;
-//    short retry = 0;
-//    while(retry < 2){
-      res = espSendCommand("AT+PING=\""+ String(HOST_IP_STR) +"\"" , (char*)"OK" , 15000); // попытка пингануть свой сервер
-      if(res){ // все наладилось
+  bool res = true;
+  if(sendErrorCounter > 3)
+    res = false;
+  else  
+    res = espSendCommand( "AT+PING=\"192.168.8.1\"" , (char*)"OK" , 5000); // попытка пингануть модем    
+    
+  if(!res){
+    res = espSendCommand("AT+PING=\""+ String(HOST_IP_STR) +"\"" , (char*)"OK" , 15000); // попытка пингануть свой сервер
+    if(res){ // все наладилось
         sendErrorCounter = 0;
         dnsFail = 0;
         return 0;
         }
-//      closeConnect();
-//      curWSSID = WSSID_PROG;
-//      espSerialSetup();
-/*      if(curWSSID == WSSID_PROG){ // переключиться на роутер
-        closeConnect();
-        curWSSID = WSSID1;
-        espSerialSetup();  
-      }
-      else
-        if(dnsFail){ // переключиться на программный роутер
-          closeConnect();
-          curWSSID = WSSID_PROG;
-          espSerialSetup();  
-        }
-*/        
-//      retry++;
-//    }
     res = espSendCommand( "AT+PING=\"192.168.0.1\"" , (char*)"OK" , 5000); // попытка пингануть роутер
-    if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если он жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
+    if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если роутер жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
       closeConnect(); // izh 22-05-2020 отключить от WIFI
       lastRouterReboot = millis();
       routerRebootCount++;

@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  19-12-2020
+ Last changed:  25-12-2020
 */
-#define VERSION "Ver 1.101 of 19-12-2020 Igor Zhukov (C)"
+#define VERSION "Ver 1.102 of 25-12-2020 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -51,14 +51,14 @@
 
 #define PIN22	22		// Реле преключение шлейфа термостат котла линия № 1
 #define PIN23	23		// Реле преключение шлейфа термостат котла линия № 2
-#define PIN24	24		// Реле перезагрузки INT1 (перезагрузка роутера)
-#define PIN25	25		// Реле вентиляторов вытяжки в подполе INT2
+#define PIN24	24		// Реле INT1 - перезагрузка роутера
+#define PIN25	25		// Реле INT2 - Выключение MINI-PC и CAM22 (раньше было -вентиляторы вытяжки в подполе)
 #define PIN26	26		// Питание насоса в дренажном колодце
 #define PIN27	27    // Питание греющего кабеля в дренажном колодце & септике
 #define PIN28	28    // Датчик уровня в дренажном колодце
-#define PIN29	29    // Включение питания ESP8266 реле INT3
+#define PIN29	29    // Реле INT3 - Включение питания ESP8266 
 
-#define PIN30	30    // Свободный вход реле INT4 - перезагрузка камер, регистратора
+#define PIN30	30    // Реле INT4 - перезагрузка камер, регистратора
 #define PIN31	31    // Реле питания греющего кабеля водяных труб в подполе INT1 (Реле №2 в ванной)
 #define PIN32	32    // Датчик температуры DS18B20 в септике (через макетную плату Белый)
 #define PIN33	33    // Наличие питания ~220 V (внешнее питание 5 V через доп блок питания)
@@ -145,9 +145,10 @@ struct DATA {
   } d;
 
 bool traceInit = false;						      // признак инициализации трассировки
-bool powerAC_off = 0;                   // признак отсутствия внешнего напряжения 220В
+bool powerAC_off = false;               // признак отсутствия внешнего напряжения 220В
 float accum_DC_V;                       // напряжение на аккумуляторе БП
-
+unsigned long powerAC_ON_OFF_Time;      // время отключения внешнего напряжения 220В
+bool power_MINI_PC_CAM22_off = false;   // признак отключения MINI-PC и CAM22 (они сидят на БП с аккумулятором)
 //--------------------------------------------------------------------------------
 class DeviceControl {
 public:
@@ -181,6 +182,7 @@ void remoteTermostat_check();
 void sendError_check();
 void sendBuffer2Site_check();
 void checkPump_check();
+void trace(String msg);
 
 Activity state_led_blink(1000,blinky_check);
 Activity sens(SENS_CHECK_TIMEOUT,sens_check);
@@ -280,7 +282,8 @@ void sens_check()
       trace("Sens changed! id=" + String(d.a[i].id) + " v=" + String(d.a[i].value));
       
       if(d.a[i].id == 5){ /* izh 28-10-2018 */
-        powerAC_off = !d.a[i].value;  
+        powerAC_off = !d.a[i].value; 
+        powerAC_ON_OFF_Time = millis();
         }
 			}
 		}
@@ -579,7 +582,7 @@ void responseProcessing(String response)
           DateTime dt2(date_str.c_str(),time_str.c_str());
           if(dt1.year() != dt2.year() || dt1.month() != dt2.month() || dt1.day() != dt2.day() || dt1.hour() != dt2.hour() || dt1.minute() != dt2.minute() || dt1.second() != dt2.second() ){
             RTC.adjust(dt2);
-            esp.addEvent2Buffer(9, str);
+            esp.addEvent2Buffer(12, str);
           }
         }
     }
@@ -649,8 +652,30 @@ void remoteTermostat_check()
   String str;
 
   checkAccumDC();
+  //trace("powerAC_off=" + String(powerAC_off) + ";" + String(power_MINI_PC_CAM22_off) + ";" + String((millis() - powerAC_ON_OFF_Time)) + ";");
+  
   if(powerAC_off){
-      esp.addEvent2Buffer(9,"VIN=" + String(accum_DC_V));
+    if(!power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 120000){ // 25-12-2020 если > 2 мин после отключения AC 220, то вырубаем MINI-PC и CAM22 и ждем когда появится AC 220 
+        str = "POWER OFF - MINI-PC,CAM22 VIN=" + String(accum_DC_V);;
+        pinMode(PIN25, OUTPUT);          
+        digitalWrite(PIN25, LOW);
+        power_MINI_PC_CAM22_off = true;
+      }
+      else 
+        str = "VIN=" + String(accum_DC_V) + " Power OFF=" + String(power_MINI_PC_CAM22_off);
+      trace(str);
+      esp.addEvent2Buffer(9,str);
+    }
+  else{
+    if(power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 15000){ // AC 220 появилось, то через 15 сек , MINI_PC и CAM22 были выключеы
+        str = "POWER ON - MINI-PC,CAM22";
+        trace(str);
+        pinMode(PIN25, OUTPUT);          
+        digitalWrite(PIN25, HIGH);
+        pinMode(PIN25, INPUT);
+        power_MINI_PC_CAM22_off = false;
+        esp.addEvent2Buffer(9,str);
+    }
   }
     
   if(fan.ControlOn){
@@ -764,7 +789,7 @@ void sendError_check()
                  " RR="  + String(routerRebootCount));
 */                 
   if(esp.sendError_check()){
-    // remoteRebootExecute(1);
+     remoteRebootExecute(1);
     }
 }
 
