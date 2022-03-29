@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  25-12-2020
+ Last changed:  29-03-2022
 */
-#define VERSION "Ver 1.102 of 25-12-2020 Igor Zhukov (C)"
+#define VERSION "Ver 1.103 of 29-03-2022 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -170,9 +170,15 @@ short boilerTargetTemp;                 // целевая температура
 bool  boilerCurrentMode;                // текущий режим ардуино-термостата
 unsigned long boilerControlUntilTime;   // управлять котлом до этого времени, потом переключить на штатный термостат
 */
-bool watchDogOK_Sended2BD = 0;          // признак отправки дежурного пакета в БД
-unsigned long lastWatchDogOK_Sended2BD;      // время отправки дежурного пакета в БД
-short timerResetCounter;                       // количество сбросов таймера с начала работы (отслеживание перехода через 50 дней)
+bool watchDogOK_Sended2BD = 0;                  // признак отправки дежурного пакета в БД
+unsigned long lastWatchDogOK_Sended2BD;         // время отправки дежурного пакета в БД
+short timerResetCounter;                        // количество сбросов таймера с начала работы (отслеживание перехода через 50 дней)
+short timerResetDays;                           // количество дней до последнего сброса таймера (переходящее количество дней для вычисление общего количества дней)
+unsigned long timerResetOstatok;                // переходящее количество тиков таймера
+
+short checked_ip = 7;
+byte tcp_last_byte[10] = {9,15,16,22,23,26,28}; // список пингуемых ip
+byte pump_force;                                // =1 включить дренажный насос в установленное время независимо от значения датчика уровня
 
 void blinky_check();
 void sens_check();
@@ -232,6 +238,8 @@ void setup()
      
    esp.addEvent2Buffer(1,"");
    esp.sendBuffer2Site();
+   
+   esp.send2site("get_param.php"); // прочитать параметры
 }
 
 //------------------------------------------------------------------------
@@ -585,26 +593,51 @@ void responseProcessing(String response)
             esp.addEvent2Buffer(12, str);
           }
         }
-    }
+     }
   }
-/*  
-  else{
-    if(response.startsWith("error=")){ // признак ошибки)
-      ind = 6; // длина признака ошибки
-      ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
-      if(ind2 >= 0){
-        String errMsg = response.substring(ind, ind2);
-        //str = "Error processing=" + errMsg;  
-        //trace( str);   
-
-        if(errMsg.startsWith("DNS Fail")){ // izh 22-05-2020 обработка ошибки DNS 
-          esp.dnsFailCounter++;
-          esp.dnsFail = 1;
+else{   // izh 29-03-2022 считать параметры
+  ind = 0;
+  while(1){
+    ind2 = response.indexOf("=", ind);
+    if(ind2 == -1)
+      break;
+    String ParamName = response.substring(ind, ind2);
+    ParamName.trim();
+    //Serial.println("name=" + ParamName);
+    ind = response.indexOf(";", ind2);
+    if(ind == -1)
+      break;
+    String ParamValue = response.substring(++ind2, ind);
+    ind++;
+    //Serial.println("value=" + ParamValue);
+    if(ParamName == "ping"){  // izh 29-03-2022 считать список пингуемых ip-шников из БД
+         checked_ip = 0;
+         int ind01 = 0;
+         int ind02; 
+  
+         for(short i=0; i<10; i++){
+          ind02 = ParamValue.indexOf(",", ind01);
+          if(ind02 == -1)
+            ind02 = ParamValue.length();
+          tcp_last_byte[i] = ParamValue.substring(ind01, ind02).toInt();  
+          //Serial.print(ind01);
+          //Serial.print(":");
+          //Serial.print(ind02);
+          //Serial.print("=");  
+          //Serial.println(tcp_last_byte[i]);
+          ind01 = ind02 + 1;
+          checked_ip = i + 1;
+          if(ind02 == ParamValue.length())
+            break;
+         }
+         //Serial.println(checked_ip);
         }
-      }
+  else if(ParamName == "pump_force"){
+    pump_force = ParamValue.substring(0, 1).toInt();
+    //Serial.println(pump_force);
     }
   }
-*/  
+}
 }
 
 //------------------------------------------------------------------------
@@ -803,12 +836,14 @@ void sendBuffer2Site_check()
 void checkPump_check() // запускается один раз в час
 {
  DateTime now = RTC.now();  
- if(now.hour() == 5 && d.a[6].value == 1){ // в 5 утра если установлен датчик уровня -> включить насос
+ if(now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)){ // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
     responseProcessing("command=pump;15;");
     }
  else
  if(now.hour() == 0){
   esp.send2site("get_date.php"); // в 23 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
+  esp.send2site("get_param.php"); // прочитать параметры
+  
  }
 }
 
@@ -836,38 +871,34 @@ void loop()
       watchDogOK_Sended2BD = true;
 
       esp.checkInitialized();
-      const int CHECKED_IP = 6;
-      byte ind, a[CHECKED_IP] = {9,15,18,20,21,22};//{9,14,15,17,18,20};//{9,10,14,15,17,18,19};
-      
+      byte ind;
       String dopInfo = "";
-      for(ind = 0; ind < CHECKED_IP; ind++){ // пинги видеорегистратора и камер
-        if(!esp.espSendCommand( "AT+PING=\"192.168.0." + String(a[ind]) + "\"" , (char*)"OK" , 5000 )){
+      for(ind = 0; ind < checked_ip; ind++){ // пинги видеорегистратора и камер
+        if(!esp.espSendCommand( "AT+PING=\"192.168.0." + String(tcp_last_byte[ind]) + "\"" , (char*)"OK" , 5000 )){
           if(dopInfo != "")
             dopInfo += ",";
-          dopInfo += String(a[ind]);
+          dopInfo += String(tcp_last_byte[ind]);
         }
       }
       if(dopInfo != "")
         dopInfo = "PingErr:" + dopInfo + " ";
       dopInfo += "Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + 
-      //           " DNSErr=" + String(esp.dnsFailCounter) + 
                  " RR="  + String(esp.routerRebootCount) + "(" + String((t - esp.lastRouterReboot) / (60*60000)) + "h.)";
 
-      unsigned int d = t/(24*60*60000);
-      unsigned int h = (t%(24*60*60000)) / (60*60000);
-      trace( "Watchdog=" + String(t) + dopInfo);
-      
-      if(lastWatchDogOK_Sended2BD > t){
-       timerResetCounter++;
+      const unsigned long ticksPerDay = 86400000; // 1000 * 60 * 60 * 24;
+      const unsigned long ticksPerHour = 3600000; //1000 * 60 * 60;
+
+      if(lastWatchDogOK_Sended2BD > t){ // сброс таймера (> ~50 дней)
+         timerResetCounter++;
+         timerResetDays += 49;                                    // количество дней до последнего сброса таймера (переходящее количество дней для вычисление общего количества дней)
+         timerResetOstatok += 0xffffffff % ticksPerDay;           // переходящее количество тиков таймера
+         timerResetDays += timerResetOstatok / ticksPerDay;
+         timerResetOstatok = timerResetOstatok % ticksPerDay;
       }
-      d += timerResetCounter * 49;
-      h += timerResetCounter * 17;
+      unsigned int d = t / ticksPerDay + (t % ticksPerDay + timerResetOstatok) / ticksPerDay + timerResetDays;
+      unsigned int h = ((t % ticksPerDay + timerResetOstatok) % ticksPerDay) / ticksPerHour;
       
       lastWatchDogOK_Sended2BD = ( t == 0)? 1:t;
-      
-      //esp.send2site("send_mail.php"); /*izh 17-03-2018 раз в час проверить срабатывание датчиков и температуры */
-
-      //esp.addEvent2Buffer(3, "days=" + String(d) + "hours="  + String(h) + "(" + dopInfo + ")");
       esp.addEvent2Buffer(3, "T=" + ((d>0)? String(d) + "d.":"")  + String(h) + "h. (" + dopInfo + ")");
       traceInit = false;
     }
