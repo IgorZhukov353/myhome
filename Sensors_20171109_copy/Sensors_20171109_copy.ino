@@ -245,6 +245,7 @@ void setup()
 		str += String(tcp_last_byte[i]) + ((i == checked_ip - 1)? ")" : ",");
 	}
 	trace(str);
+}
 
 //------------------------------------------------------------------------
 void sens_setup() 
