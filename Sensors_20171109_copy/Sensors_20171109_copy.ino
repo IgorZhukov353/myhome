@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  29-03-2022
+ Last changed:  30-03-2022
 */
-#define VERSION "Ver 1.103 of 29-03-2022 Igor Zhukov (C)"
+#define VERSION "Ver 1.104 of 30-03-2022 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -245,6 +245,7 @@ void setup()
 		str += String(tcp_last_byte[i]) + ((i == checked_ip - 1)? ")" : ",");
 	}
 	trace(str);
+}
 
 //------------------------------------------------------------------------
 void sens_setup() 
