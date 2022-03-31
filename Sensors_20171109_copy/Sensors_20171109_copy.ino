@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  30-03-2022
+ Last changed:  31-03-2022
 */
-#define VERSION "Ver 1.104 of 30-03-2022 Igor Zhukov (C)"
+#define VERSION "Ver 1.105 of 31-03-2022 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -344,7 +344,7 @@ float readDallasTemp(DallasTemperature *d)
  d->requestTemperaturesByIndex(0); // Send the command to get temperatures
  for(short ii=0; ii < 10; ii++){
     ft = d->getTempCByIndex(0);
-    if( ft > -126){
+    if( ft > -100){
        break;
        }
     delay(50);  
@@ -580,22 +580,23 @@ void responseProcessing(String response)
         }  
       else  
       if(cmd == "setdatetime"){ // izh 19-02-2020 проверка местного времени, если надо корректировка
-          str = "datetime: check& corr.";
-          trace( str); 
-          //esp.addEvent2Buffer(8, str);
-          
           ind2 += 1;
           ind = response.indexOf(";", ind2);
           String date_str = response.substring(ind2, ind);  
           ind += 1;
           ind2 = response.indexOf(";", ind);
           String time_str = response.substring(ind, ind2);
-          trace( date_str + " " + time_str); 
+          
           DateTime dt1(RTC.now());  
           DateTime dt2(date_str.c_str(),time_str.c_str());
+          
+          str = "datetime: check& corr:" + date_str + " " + time_str;
+          trace(str); 
+          esp.addEvent2Buffer(12, str);
+          
           if(dt1.year() != dt2.year() || dt1.month() != dt2.month() || dt1.day() != dt2.day() || dt1.hour() != dt2.hour() || dt1.minute() != dt2.minute() || dt1.second() != dt2.second() ){
             RTC.adjust(dt2);
-            esp.addEvent2Buffer(12, str);
+            esp.addEvent2Buffer(12, "Time update.");
           }
         }
      }
