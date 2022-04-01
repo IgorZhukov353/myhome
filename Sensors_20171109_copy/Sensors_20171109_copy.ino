@@ -464,7 +464,7 @@ void responseProcessing(String response)
     ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
     if(ind2 >= 0){
       String cmd = response.substring(ind, ind2);
-      str = "Command processing=" + cmd;  
+      str = "cmd=" + cmd;  
       trace( str); 
       esp.addEvent2Buffer(7, str);
       
@@ -596,7 +596,7 @@ void responseProcessing(String response)
           DateTime dt1(RTC.now());  
           DateTime dt2(date_str.c_str(),time_str.c_str());
           
-          str = "datetime: check& corr:" + date_str + " " + time_str;
+          str = "TimeCheckCorr:" + date_str + " " + time_str;
           trace(str); 
           esp.addEvent2Buffer(12, str);
           
@@ -847,16 +847,16 @@ void sendBuffer2Site_check()
 //------------------------------------------------------------------------
 void checkPump_check() // запускается один раз в час
 {
- DateTime now = RTC.now();  
- if(now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)){ // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
-    responseProcessing("command=pump;15;");
+  DateTime now = RTC.now();  
+  if(now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)){ // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
+      responseProcessing("command=pump;15;");
     }
- esp.addEvent2Buffer(12, "hour=" + String(now.hour())); 
- if(now.hour() == 14){
-  esp.send2site("get_date.php"); // в 23 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
-  get_param(); // прочитать параметры
-  
- }
+
+  //esp.addEvent2Buffer(12, "hour=" + String(now.hour())); 
+  if(now.hour() == 0){
+    esp.send2site("get_date.php"); // в 00 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
+    get_param(); // прочитать параметры
+    }
 }
 
 //------------------------------------------------------------------------
