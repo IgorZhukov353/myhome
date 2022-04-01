@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  31-03-2022
+ Last changed:  1-04-2022
 */
-#define VERSION "Ver 1.105 of 31-03-2022 Igor Zhukov (C)"
+#define VERSION "Ver 1.106 of 1-04-2022 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -217,34 +217,40 @@ int memoryFree()
    return freeValue;
 }
 //------------------------------------------------------------------------
+void get_param()
+{
+  esp.send2site("get_param.php");  // прочитать параметры
+   String str = "Checked_IP=" + String(checked_ip) + "(";
+   for (short i = 0; i < checked_ip; i++) {
+     str += String(tcp_last_byte[i]) + ((i == checked_ip - 1) ? ")" : ",");
+   }
+   trace(str);
+}
+//------------------------------------------------------------------------
 void setup() 
 {
-   trace(VERSION);
+  trace(VERSION);
   
-   Wire.begin();
-   RTC.begin();
-    
-   d.sysState = 1;
-   d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
-   pinMode(state_led_pin, OUTPUT);
-   digitalWrite(state_led_pin, d.ledState);
-    
-   sens_setup();
-   for(short i=0;i<3;i++){
-	  dallasTemp[i].begin();
-   }
+  Wire.begin();
+  RTC.begin();
+  
+  d.sysState = 1;
+  d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
+  pinMode(state_led_pin, OUTPUT);
+  digitalWrite(state_led_pin, d.ledState);
+  
+  sens_setup();
+  for(short i=0;i<3;i++){
+  dallasTemp[i].begin();
+  }
 
-   esp.check_Wait_Internet(); 
-     
-   esp.addEvent2Buffer(1,"");
-   esp.sendBuffer2Site();
+  esp.check_Wait_Internet(); 
+    
+  esp.addEvent2Buffer(1,"");
+  esp.sendBuffer2Site();
+
+  get_param();
    
-   esp.send2site("get_param.php"); // прочитать параметры
-   String str = "Checked_IP=" + String(checked_ip) + "(";
-   for(short i=0; i< checked_ip; i++){
-		str += String(tcp_last_byte[i]) + ((i == checked_ip - 1)? ")" : ",");
-	}
-	trace(str);
 }
 
 //------------------------------------------------------------------------
@@ -601,7 +607,7 @@ void responseProcessing(String response)
         }
      }
   }
-else{   // izh 29-03-2022 считать параметры
+  else{   // izh 29-03-2022 считать параметры
   ind = 0;
   while(1){
     ind2 = response.indexOf("=", ind);
@@ -638,7 +644,7 @@ else{   // izh 29-03-2022 считать параметры
          }
          //Serial.println(checked_ip);
         }
-  else if(ParamName == "pump_force"){
+    else if(ParamName == "pump_force"){
     pump_force = ParamValue.substring(0, 1).toInt();
     //Serial.println(pump_force);
     }
@@ -845,10 +851,10 @@ void checkPump_check() // запускается один раз в час
  if(now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)){ // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
     responseProcessing("command=pump;15;");
     }
- else
- if(now.hour() == 0){
+ esp.addEvent2Buffer(12, "hour=" + String(now.hour())); 
+ if(now.hour() == 14){
   esp.send2site("get_date.php"); // в 23 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
-  esp.send2site("get_param.php"); // прочитать параметры
+  get_param(); // прочитать параметры
   
  }
 }
