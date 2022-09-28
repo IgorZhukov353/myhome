@@ -86,27 +86,16 @@ catch (Exception $e) {
 //------------------------------------------------------------------- 
 function sendYandexMail($msg)
 {
-$mailSMTP = new SendMailSmtpClass('igorjukov353@yandex.ru', 'UJMiop890', 'ssl://smtp.yandex.ru', 'igorjukov353@yandex.ru', 465);
-// $mailSMTP = new SendMailSmtpClass('логин', 'пароль', 'хост', 'имя отправителя');
-  
+include("log/login_info.php");
+$mailSMTP = new SendMailSmtpClass($mail_login, $mail_pass, $mail_host, $mail_from, $mail_port);
+
 // заголовок письма
 $headers= "MIME-Version: 1.0\r\n";
 $headers .= "Content-type: text/html; charset=utf-8\r\n"; // кодировка письма
 $headers .= "From: MyHome <igorjukov353@yandex.ru>\r\n"; // от кого письмо
 $server_name = "igorzhukov353.h1n.ru"; // откуда устанавливаем соединение
-$result =  $mailSMTP->send('igorjukov353@yandex.ru', 'from igorzhukov353.h1n.ru', $msg, $headers, $server_name); // отправляем письмо
+$result =  $mailSMTP->send($mail_login, 'from igorzhukov353.h1n.ru', $msg, $headers, $server_name); // отправляем письмо
 
-//$mailSMTP = new SendMailSmtpClass('igorjukov353@yandex.ru', 'UJMiop890', 'ssl://smtp.yandex.ru', 'Igor', 465);
-// $mailSMTP = new SendMailSmtpClass('логин', 'пароль', 'хост', 'имя отправителя');
-  
-// заголовок письма
-//$headers= "MIME-Version: 1.0\r\n";
-//$headers .= "Content-type: text/html; charset=utf-8\r\n"; // кодировка письма
-//$headers .= "From: MyHome <MyHome@ya.ru>\r\n"; // от кого письмо
-//$server_name = "igorzhukov353.h1n.ru"; // откуда устанавливаем соединение
-//$result =  $mailSMTP->send('igorjukov353@yandex.ru', 'from site', $msg, $headers, $server_name); // отправляем письмо
-//$result =  $mailSMTP->send('igor.zhukov@eaeconsult.ru', 'from site', $msg, $headers); // отправляем письмо
-// $result =  $mailSMTP->send('Кому письмо', 'Тема письма', 'Текст письма', 'Заголовки письма');
 /*if($result === true){
     echo "Письмо успешно отправлено";
 }
