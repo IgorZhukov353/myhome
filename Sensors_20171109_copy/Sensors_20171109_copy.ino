@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  1-04-2022
+ Last changed:  23-04-2022
 */
-#define VERSION "Ver 1.106 of 1-04-2022 Igor Zhukov (C)"
+#define VERSION "Ver 1.107 of 23-04-2022 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -464,7 +464,7 @@ void responseProcessing(String response)
     ind2 = response.indexOf(";", ind); // поиск первой точки-запятой
     if(ind2 >= 0){
       String cmd = response.substring(ind, ind2);
-      str = "Command processing=" + cmd;  
+      str = "cmd=" + cmd;  
       trace( str); 
       esp.addEvent2Buffer(7, str);
       
@@ -596,7 +596,7 @@ void responseProcessing(String response)
           DateTime dt1(RTC.now());  
           DateTime dt2(date_str.c_str(),time_str.c_str());
           
-          str = "datetime: check& corr:" + date_str + " " + time_str;
+          str = "TimeCheckCorr:" + date_str + " " + time_str;
           trace(str); 
           esp.addEvent2Buffer(12, str);
           
@@ -608,45 +608,48 @@ void responseProcessing(String response)
      }
   }
   else{   // izh 29-03-2022 считать параметры
-  ind = 0;
-  while(1){
-    ind2 = response.indexOf("=", ind);
-    if(ind2 == -1)
-      break;
-    String ParamName = response.substring(ind, ind2);
-    ParamName.trim();
-    //Serial.println("name=" + ParamName);
-    ind = response.indexOf(";", ind2);
-    if(ind == -1)
-      break;
-    String ParamValue = response.substring(++ind2, ind);
-    ind++;
-    //Serial.println("value=" + ParamValue);
-    if(ParamName == "ping"){  // izh 29-03-2022 считать список пингуемых ip-шников из БД
-         checked_ip = 0;
-         int ind01 = 0;
-         int ind02; 
-  
-         for(short i=0; i<10; i++){
-          ind02 = ParamValue.indexOf(",", ind01);
-          if(ind02 == -1)
-            ind02 = ParamValue.length();
-          tcp_last_byte[i] = ParamValue.substring(ind01, ind02).toInt();  
-          //Serial.print(ind01);
-          //Serial.print(":");
-          //Serial.print(ind02);
-          //Serial.print("=");  
-          //Serial.println(tcp_last_byte[i]);
-          ind01 = ind02 + 1;
-          checked_ip = i + 1;
-          if(ind02 == ParamValue.length())
-            break;
-         }
-         //Serial.println(checked_ip);
-        }
-    else if(ParamName == "pump_force"){
-    pump_force = ParamValue.substring(0, 1).toInt();
-    //Serial.println(pump_force);
+  ind = response.indexOf("param_"); // признак команды  
+  if(ind >= 0){
+    trace("Считать параметры.");
+    while(1){
+      ind2 = response.indexOf("=", ind);
+      if(ind2 == -1)
+        break;
+      String ParamName = response.substring(ind, ind2);
+      ParamName.trim();
+      trace("name=" + ParamName);
+      ind = response.indexOf(";", ind2);
+      if(ind == -1)
+        break;
+      String ParamValue = response.substring(++ind2, ind);
+      ind++;
+      trace("value=" + ParamValue);
+      if(ParamName == "param_ping"){  // izh 29-03-2022 считать список пингуемых ip-шников из БД
+           checked_ip = 0;
+           int ind01 = 0;
+           int ind02; 
+    
+           for(short i=0; i<10; i++){
+            ind02 = ParamValue.indexOf(",", ind01);
+            if(ind02 == -1)
+              ind02 = ParamValue.length();
+            tcp_last_byte[i] = ParamValue.substring(ind01, ind02).toInt();  
+            //Serial.print(ind01);
+            //Serial.print(":");
+            //Serial.print(ind02);
+            //Serial.print("=");  
+            //Serial.println(tcp_last_byte[i]);
+            ind01 = ind02 + 1;
+            checked_ip = i + 1;
+            if(ind02 == ParamValue.length())
+              break;
+           }
+           //Serial.println(checked_ip);
+          }
+      else if(ParamName == "param_pump_force"){
+      pump_force = ParamValue.substring(0, 1).toInt();
+      //Serial.println(pump_force);
+      }
     }
   }
 }
@@ -847,16 +850,16 @@ void sendBuffer2Site_check()
 //------------------------------------------------------------------------
 void checkPump_check() // запускается один раз в час
 {
- DateTime now = RTC.now();  
- if(now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)){ // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
-    responseProcessing("command=pump;15;");
+  DateTime now = RTC.now();  
+  if(now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)){ // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
+      responseProcessing("command=pump;15;");
     }
- esp.addEvent2Buffer(12, "hour=" + String(now.hour())); 
- if(now.hour() == 14){
-  esp.send2site("get_date.php"); // в 23 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
-  get_param(); // прочитать параметры
-  
- }
+
+  //esp.addEvent2Buffer(12, "hour=" + String(now.hour())); 
+  if(now.hour() == 0){
+    esp.send2site("get_date.php"); // в 00 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
+    get_param(); // прочитать параметры
+    }
 }
 
 //------------------------------------------------------------------------
