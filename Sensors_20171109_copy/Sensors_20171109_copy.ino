@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  23-04-2022
+ Last changed:  19-12-2022
 */
-#define VERSION "Ver 1.107 of 23-04-2022 Igor Zhukov (C)"
+#define VERSION "Ver 1.108 of 19-12-2022 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -61,7 +61,7 @@
 #define PIN30	30    // Реле INT4 - перезагрузка камер, регистратора
 #define PIN31	31    // Реле питания греющего кабеля водяных труб в подполе INT1 (Реле №2 в ванной)
 #define PIN32	32    // Датчик температуры DS18B20 в септике (через макетную плату Белый)
-#define PIN33	33    // Наличие питания ~220 V (внешнее питание 5 V через доп блок питания)
+#define PIN33	33    // Свободен // С 19-12-2022 не используется. ~220V проверяется с красного светодиода БП на аналоговом пине А1 //Наличие питания ~220 V (внешнее питание 5 V через доп блок питания)
 #define PIN34	34    // Датчик температуры (площадка 2 этаж)
 #define PIN35	35    // PIR 4 (Движение площадка 2 этаж)
 #define PIN36	36
@@ -136,8 +136,8 @@ struct DATA {
         {2,0,0, LOW, ALARM_ON, PIN5,0,false,false,false},  //pir2 гараж
         {3,0,0, HIGH,ALARM_ON, PIN7,0,false,false,false},  //дверь № 1 
         {4,0,0, HIGH,ALARM_ON, PIN8,0,false,false,false},  //дверь № 2 
-        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true,false},   // наличие питания 
-        {6,0,0, LOW ,ALARM_OFF, PIN9,0,false,false,false},  //pir3 кухня
+        {5,0,0, HIGH,ALARM_ON, A1,0,true,true,true},       // наличие питания 
+        {6,0,0, LOW ,ALARM_OFF, PIN9,0,false,false,false}, //pir3 кухня
         {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true,true},   //уровень в дрен колодце
         {8,0,0, LOW ,ALARM_ON, PIN35,0,false,false,false}  //pir4 площадка 2 этаж
         };
@@ -177,7 +177,7 @@ short timerResetDays;                           // количество дней
 unsigned long timerResetOstatok;                // переходящее количество тиков таймера
 
 short checked_ip = 7;
-byte tcp_last_byte[10] = {9,15,16,22,23,26,28}; // список пингуемых ip
+byte tcp_last_byte[10] = {9,22,23,26,28,29}; // список пингуемых ip
 byte pump_force;                                // =1 включить дренажный насос в установленное время независимо от значения датчика уровня
 
 void blinky_check();
@@ -226,32 +226,6 @@ void get_param()
    }
    trace(str);
 }
-//------------------------------------------------------------------------
-void setup() 
-{
-  trace(VERSION);
-  
-  Wire.begin();
-  RTC.begin();
-  
-  d.sysState = 1;
-  d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
-  pinMode(state_led_pin, OUTPUT);
-  digitalWrite(state_led_pin, d.ledState);
-  
-  sens_setup();
-  for(short i=0;i<3;i++){
-  dallasTemp[i].begin();
-  }
-
-  esp.check_Wait_Internet(); 
-    
-  esp.addEvent2Buffer(1,"");
-  esp.sendBuffer2Site();
-
-  get_param();
-   
-}
 
 //------------------------------------------------------------------------
 void sens_setup() 
@@ -281,7 +255,7 @@ void sens_check()
 		   d.tmp_value = digitalRead(d.a[i].pin);
       else{
        d.tmp_value = analogRead(d.a[i].pin);
-       if( d.tmp_value > 100)
+       if( d.tmp_value > 10)
         d.tmp_value = 1;
        else
         d.tmp_value = 0; 
@@ -863,11 +837,55 @@ void checkPump_check() // запускается один раз в час
 }
 
 //------------------------------------------------------------------------
+void esp_power_switch(bool p)
+{
+  //return;
+  if(p== true){
+    pinMode(PIN29, OUTPUT);
+    digitalWrite(PIN29, LOW);
+    }
+  else {
+    digitalWrite(PIN29, HIGH);
+    pinMode(PIN29, INPUT);
+  }
+
+}
+
+//------------------------------------------------------------------------
+//------------------------------------------------------------------------
+void setup() 
+{
+  trace(VERSION);
+  
+  Wire.begin();
+  RTC.begin();
+  
+  d.sysState = 1;
+  d.ledState = LOW;                   // этой переменной устанавливаем состояние светодиода
+  pinMode(state_led_pin, OUTPUT);
+  digitalWrite(state_led_pin, d.ledState);
+  
+  sens_setup();
+  for(short i=0;i<3;i++){
+  dallasTemp[i].begin();
+  }
+
+return;
+  esp.check_Wait_Internet(); 
+    
+  esp.addEvent2Buffer(1,"");
+  esp.sendBuffer2Site();
+
+  get_param();
+   
+}
+
+//------------------------------------------------------------------------
 void loop() 
 {
   //temp_check();
-  //sens.checkActivated();
-  //return;
+  sens.checkActivated();
+  return;
   
  esp.checkIdle();
  sendError.checkActivated();
@@ -922,19 +940,4 @@ void loop()
     watchDogOK_Sended2BD = false;
 
  sendBuffer2Site.checkActivated();     
-}
-
-//------------------------------------------------------------------------
-void esp_power_switch(bool p)
-{
-  //return;
-  if(p== true){
-    pinMode(PIN29, OUTPUT);
-    digitalWrite(PIN29, LOW);
-    }
-  else {
-    digitalWrite(PIN29, HIGH);
-    pinMode(PIN29, INPUT);
-  }
-
 }
