@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  19-12-2022
+ Last changed:  08-10-2023
 */
-#define VERSION "Ver 1.108 of 19-12-2022 Igor Zhukov (C)"
+#define VERSION "Ver 1.110 of 08-10-2023 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -255,6 +255,7 @@ void sens_check()
 		   d.tmp_value = digitalRead(d.a[i].pin);
       else{
        d.tmp_value = analogRead(d.a[i].pin);
+       trace("Analog Sens check! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value));
        if( d.tmp_value > 10)
         d.tmp_value = 1;
        else
@@ -870,7 +871,6 @@ void setup()
   dallasTemp[i].begin();
   }
 
-return;
   esp.check_Wait_Internet(); 
     
   esp.addEvent2Buffer(1,"");
@@ -884,8 +884,8 @@ return;
 void loop() 
 {
   //temp_check();
-  sens.checkActivated();
-  return;
+  //sens.checkActivated();
+  //return;
   
  esp.checkIdle();
  sendError.checkActivated();
