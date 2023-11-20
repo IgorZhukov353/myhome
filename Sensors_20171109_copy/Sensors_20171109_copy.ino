@@ -1,9 +1,9 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  08-10-2023
+ Last changed:  20-11-2023
 */
-#define VERSION "Ver 1.110 of 08-10-2023 Igor Zhukov (C)"
+#define VERSION "Ver 1.120 of 20-11-2023 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h> 
@@ -53,18 +53,18 @@
 #define PIN23	23		// Реле преключение шлейфа термостат котла линия № 2
 #define PIN24	24		// Реле INT1 - перезагрузка роутера
 #define PIN25	25		// Реле INT2 - Выключение MINI-PC и CAM22 (раньше было -вентиляторы вытяжки в подполе)
-#define PIN26	26		// Питание насоса в дренажном колодце
-#define PIN27	27    // Питание греющего кабеля в дренажном колодце & септике
+#define PIN26	26		// Питание насоса в дренажном колодце (INT1 реле в ванной)
+#define PIN27	27    // Питание греющего кабеля в дренажном колодце & септике (INT2 реле в ванной)
 #define PIN28	28    // Датчик уровня в дренажном колодце
 #define PIN29	29    // Реле INT3 - Включение питания ESP8266 
 
 #define PIN30	30    // Реле INT4 - перезагрузка камер, регистратора
-#define PIN31	31    // Реле питания греющего кабеля водяных труб в подполе INT1 (Реле №2 в ванной)
+#define PIN31	31    // Реле питания греющего кабеля водяных труб в подполе (INT3 реле в ванной)
 #define PIN32	32    // Датчик температуры DS18B20 в септике (через макетную плату Белый)
-#define PIN33	33    // Свободен // С 19-12-2022 не используется. ~220V проверяется с красного светодиода БП на аналоговом пине А1 //Наличие питания ~220 V (внешнее питание 5 V через доп блок питания)
-#define PIN34	34    // Датчик температуры (площадка 2 этаж)
+#define PIN33	33    // Наличие питания ~220 V (16-11-2023 через устройство на оптроне 0 - есть, 1 - нет)
+#define PIN34	34    // Датчик температуры DS18B20 (площадка 2 этаж)
 #define PIN35	35    // PIR 4 (Движение площадка 2 этаж)
-#define PIN36	36
+#define PIN36	36    // Датчик температуры DS18B20 (гараж овощной ящик)
 #define PIN37	37
 #define PIN38	38
 #define PIN39	39
@@ -92,14 +92,16 @@ RTC_DS1307  RTC; // часы реального времени
 ESP_WIFI    esp; // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+#define MAX_TEMP_SENS   7
+#define MAX_DALLAS_SENS   4
 
-OneWire oneWire[3] = {OneWire(PIN12),OneWire(PIN32),OneWire(PIN34)}; // 
+OneWire oneWire[MAX_DALLAS_SENS] = {OneWire(PIN12),OneWire(PIN32),OneWire(PIN34),OneWire(PIN36)}; // 
 
 // Pass our oneWire reference to Dallas Temperature. 
-DallasTemperature dallasTemp[3] = {DallasTemperature(&oneWire[0]),DallasTemperature(&oneWire[1]),DallasTemperature(&oneWire[2])};
+DallasTemperature dallasTemp[MAX_DALLAS_SENS] = {DallasTemperature(&oneWire[0]),DallasTemperature(&oneWire[1]),DallasTemperature(&oneWire[2]),DallasTemperature(&oneWire[3])};
 
 DHT dht[3] = {DHT(PIN2, DHT22), DHT(PIN3, DHT22), DHT(PIN4, DHT22)};
-short prevTemp[6] = {-100,-100,-100,-100,-100,-100}, prevHum[6];      // последние показания датчика температуры и влажности
+short prevTemp[MAX_TEMP_SENS] = {-100,-100,-100,-100,-100,-100,-100}, prevHum[MAX_TEMP_SENS];      // последние показания датчика температуры и влажности
 
 #define state_led_pin 		  PIN13
 #define SENS_CHECK_TIMEOUT 	100
@@ -136,7 +138,9 @@ struct DATA {
         {2,0,0, LOW, ALARM_ON, PIN5,0,false,false,false},  //pir2 гараж
         {3,0,0, HIGH,ALARM_ON, PIN7,0,false,false,false},  //дверь № 1 
         {4,0,0, HIGH,ALARM_ON, PIN8,0,false,false,false},  //дверь № 2 
-        {5,0,0, HIGH,ALARM_ON, A1,0,true,true,true},       // наличие питания 
+//        {5,0,0, HIGH,ALARM_ON, A1,0,true,true,true},       // наличие питания 
+//        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true,true},       // наличие питания // пока как было
+        {5,0,0, LOW,ALARM_ON, PIN33,0,false,true,true},       // наличие питания // new
         {6,0,0, LOW ,ALARM_OFF, PIN9,0,false,false,false}, //pir3 кухня
         {7,0,0, LOW ,ALARM_ON, PIN28,0,false,true,true},   //уровень в дрен колодце
         {8,0,0, LOW ,ALARM_ON, PIN35,0,false,false,false}  //pir4 площадка 2 этаж
@@ -149,27 +153,8 @@ bool powerAC_off = false;               // признак отсутствия �
 float accum_DC_V;                       // напряжение на аккумуляторе БП
 unsigned long powerAC_ON_OFF_Time;      // время отключения внешнего напряжения 220В
 bool power_MINI_PC_CAM22_off = false;   // признак отключения MINI-PC и CAM22 (они сидят на БП с аккумулятором)
-//--------------------------------------------------------------------------------
-class DeviceControl {
-public:
-bool  ControlOn;                        // признак управления 
-unsigned long ControlUntilTime;         // управлять до этого времени
 
-DeviceControl(){ControlOn=false;}
-} fan,pump;
-
-class Boiler : public DeviceControl {
-public:  
-short TargetTemp;                 // целевая температура
-bool  CurrentMode;                // текущий режим ардуино-термостата
-} boiler, heating_cable;  
-
-/*--------------------------------------------------------------------------------
-bool  boilerControlOn = false;          // признак управления газовым котлом (переключаем на ардуино релейную линию с штатного термостата) // 17-12-2017
-short boilerTargetTemp;                 // целевая температура
-bool  boilerCurrentMode;                // текущий режим ардуино-термостата
-unsigned long boilerControlUntilTime;   // управлять котлом до этого времени, потом переключить на штатный термостат
-*/
+/*--------------------------------------------------------------------------------*/
 bool watchDogOK_Sended2BD = 0;                  // признак отправки дежурного пакета в БД
 unsigned long lastWatchDogOK_Sended2BD;         // время отправки дежурного пакета в БД
 short timerResetCounter;                        // количество сбросов таймера с начала работы (отслеживание перехода через 50 дней)
@@ -189,16 +174,114 @@ void sendError_check();
 void sendBuffer2Site_check();
 void checkPump_check();
 void trace(String msg);
+float readDallasTemp(DallasTemperature *d);
+void remoteRebootExecute(int act);
 
 Activity state_led_blink(1000,blinky_check);
 Activity sens(SENS_CHECK_TIMEOUT,sens_check);
 Activity tempHum(TEMP_TIMEOUT,temp_check);
-//Activity tempHum(10000,temp_check);
 Activity readCommand(COMMAND_TIMEOUT,command_check);
 Activity remoteTermostat(BOILER_TIMEOUT,remoteTermostat_check);
 Activity sendError(COMMAND_TIMEOUT,sendError_check); 
 Activity sendBuffer2Site(1000,sendBuffer2Site_check); // передача буфера информации раз в 1 секунду (если есть что)
 Activity checkPump(((60000 * 60)),checkPump_check); 
+
+//--------------------------------------------------------------------------------
+class DeviceControl {
+public:
+bool  ControlOn;                        // признак управления 
+unsigned long ControlUntilTime;         // управлять до этого времени
+
+DeviceControl(){ControlOn=false;}
+} fan,pump;
+
+class Boiler : public DeviceControl {
+public:  
+short pin;
+short pin2;
+String name;
+short tempSensorId;
+
+short TargetTemp;                 // целевая температура
+bool  CurrentMode;                // текущий режим ардуино-термостата
+Boiler(short ppin, String pname,short ptempSensorId, short ppin2=0){pin=ppin; name=pname; pin2=ppin2; tempSensorId=ptempSensorId;};
+void init(String response,short ind2)
+  {
+        String str = name + ": termostat init.";
+        trace( str); 
+        esp.addEvent2Buffer(8, str);
+        ind2++;
+        short ind = response.indexOf(";", ind2);
+        TargetTemp = atoi(response.substring(ind2, ind).c_str());  
+        if(!TargetTemp){
+          trace( "Error target temp reading!");  
+          return;
+          }
+        ind++;
+        ind2 = response.indexOf(";", ind);
+        ControlUntilTime = atoi(response.substring(ind, ind2).c_str());
+        if( !ControlUntilTime){
+          trace( "Error period reading!");  
+          return;
+          }
+        ControlUntilTime = millis() + ControlUntilTime * 60000 * 60;
+        ControlOn = true;
+        CurrentMode = false;
+        pinMode(pin, OUTPUT);
+        digitalWrite(pin, HIGH); // пока выключено
+        if(pin2 > 0){ // для включения котла 
+          pinMode(pin2, OUTPUT);
+          digitalWrite(pin2, LOW); // включено
+        }
+  };
+void processing()
+  {     
+      String str;
+      if(millis() > ControlUntilTime){ // закончен период работы ардуино-термостата
+        str = name + ": termostat stop.";
+        trace( str); 
+        esp.addEvent2Buffer(8, str);
+        
+        ControlOn = false;
+        digitalWrite(pin, HIGH);
+        pinMode(pin, INPUT);
+        if(pin2 > 0){
+          digitalWrite(pin2, HIGH);
+          pinMode(pin2, INPUT);
+        }
+        return;      
+      }
+      double t;
+      if(tempSensorId < 4){
+        t = dht[tempSensorId - 1].readTemperature();
+      }
+      else {
+        t = readDallasTemp(&dallasTemp[tempSensorId - 4]);
+      }
+
+      unsigned long ms = ControlUntilTime - millis();
+      unsigned int h = (ms / (60*60000));
+      unsigned int m = (ms % (60*60000)) / 60000;
+      str = name + ": Target=" + String(TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
+      if( t < TargetTemp){
+        if(!CurrentMode){
+          str += " state: Heat on."; 
+          CurrentMode = true;  
+          digitalWrite(pin, LOW);        
+        }
+      }
+      else{
+        if(CurrentMode){
+          str += " state: Heat off."; 
+          CurrentMode = false;  
+          digitalWrite(pin, HIGH);        
+        }
+      }
+      
+      trace( str); 
+      esp.addEvent2Buffer(8, str);
+  };
+} boiler(23,"boiler",1,22), heating_cable(27,"heating_cable",4), vegetableStorage(31,"heating_vegetable_storage", 7);  
 
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,
@@ -219,12 +302,12 @@ int memoryFree()
 //------------------------------------------------------------------------
 void get_param()
 {
-  esp.send2site("get_param.php");  // прочитать параметры
-   String str = "Checked_IP=" + String(checked_ip) + "(";
-   for (short i = 0; i < checked_ip; i++) {
+	esp.send2site("get_param.php");  // прочитать параметры
+	String str = "Checked_IP=" + String(checked_ip) + "(";
+	for (short i = 0; i < checked_ip; i++) {
      str += String(tcp_last_byte[i]) + ((i == checked_ip - 1) ? ")" : ",");
-   }
-   trace(str);
+	}
+	trace(str);
 }
 
 //------------------------------------------------------------------------
@@ -241,6 +324,8 @@ void sens_setup()
     d.a[i].value = d.a[i].norm_state;
     trace("Sens init! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value)+ " v2=" + String(d.a[i].pre_value)); 
     }
+
+   //pinMode(5, INPUT);
 }
 	
 //------------------------------------------------------------------------
@@ -340,7 +425,7 @@ void temp_check()
     // считанные показания могут отличаться от актуальных примерно на 2 секунды (это очень медленный датчик)
     
     short h,t;
-    for(short i=0; i<6; i++){
+    for(short i=0; i<MAX_TEMP_SENS; i++){
       if(i < 3){
         h = round(dht[i].readHumidity());
         if(dht[i].state == false){
@@ -468,30 +553,22 @@ void responseProcessing(String response)
        if(heating_cable.ControlOn)
           heating_cable.ControlUntilTime = 0;
       }
+      else
+      if(cmd == "heating_vegetable_storage_stop"){
+       if(vegetableStorage.ControlOn)
+          vegetableStorage.ControlUntilTime = 0;
+      }
+      else
       if(cmd == "fan_stop"){
        if(fan.ControlOn)
           fan.ControlUntilTime = 0;
       }
+      else
       if(cmd == "pump_stop"){
        if(pump.ControlOn)
           pump.ControlUntilTime = 0;
       }
-      else
-//      if(cmd == "fan"){
-//          trace( "fan init." );
-//          ind2 += 1;
-//          ind = response.indexOf(";", ind2);
-//          fan.ControlUntilTime = atoi(response.substring(ind2, ind).c_str());  
-//          if( !fan.ControlUntilTime){
-//            trace( "Error fan period reading!");  
-//            return;
-//            }
-//          fan.ControlUntilTime = millis() + fan.ControlUntilTime * 60000;  // в минутах
-//          fan.ControlOn = true;
-//          pinMode(PIN25, OUTPUT);
-//          digitalWrite(PIN25, LOW);
-//      }
-//      else
+      else      
       if(cmd == "pump"){
           trace( "pump init." );
           ind2 += 1;
@@ -504,61 +581,21 @@ void responseProcessing(String response)
           pump.ControlUntilTime = millis() + pump.ControlUntilTime * 60000;  // в минутах
           pump.ControlOn = true;
           pinMode(PIN26, OUTPUT);
-          digitalWrite(PIN26, LOW);
-      }
+          digitalWrite(PIN26, LOW);      
+          }
       else  
       if(cmd == "boiler"){
-          str = "boiler: termostat init.";
-          trace( str); 
-          esp.addEvent2Buffer(8, str);
-          
-          ind2 += 1;
-          ind = response.indexOf(";", ind2);
-          boiler.TargetTemp = atoi(response.substring(ind2, ind).c_str());  
-          if( !boiler.TargetTemp){
-            trace( "Error target temp reading!");  
-            return;
-            }
-          ind += 1;
-          ind2 = response.indexOf(";", ind);
-          boiler.ControlUntilTime = atoi(response.substring(ind, ind2).c_str());
-          if( !boiler.ControlUntilTime){
-            trace( "Error period reading!");  
-            return;
-            }
-          boiler.ControlUntilTime = millis() + boiler.ControlUntilTime * 60000 * 60;
-          boiler.ControlOn = true;
-          boiler.CurrentMode = false;
-          pinMode(PIN22, OUTPUT);
-          pinMode(PIN23, OUTPUT);
-          digitalWrite(PIN22, LOW);
-          digitalWrite(PIN23, HIGH);
-        }
+          boiler.init(response,ind2);           
+          }          
       else  
       if(cmd == "heating_cable"){
-          str = "heating_cable: termostat init.";
-          trace( str); 
-          esp.addEvent2Buffer(8, str);
-          ind2 += 1;
-          ind = response.indexOf(";", ind2);
-          heating_cable.TargetTemp = atoi(response.substring(ind2, ind).c_str());  
-          if( !heating_cable.TargetTemp){
-            trace( "Error target temp reading!");  
-            return;
-            }
-          ind += 1;
-          ind2 = response.indexOf(";", ind);
-          heating_cable.ControlUntilTime = atoi(response.substring(ind, ind2).c_str());
-          if( !heating_cable.ControlUntilTime){
-            trace( "Error period reading!");  
-            return;
-            }
-          heating_cable.ControlUntilTime = millis() + heating_cable.ControlUntilTime * 60000 * 60;
-          heating_cable.ControlOn = true;
-          heating_cable.CurrentMode = false;
-          pinMode(PIN27, OUTPUT);
-          digitalWrite(PIN27, HIGH); // пока выключено
-        }  
+          heating_cable.init(response,ind2);        
+          }  
+
+      else  
+      if(cmd == "heating_vegetable_storage"){
+          vegetableStorage.init(response,ind2);
+          }
       else  
       if(cmd == "setdatetime"){ // izh 19-02-2020 проверка местного времени, если надо корректировка
           ind2 += 1;
@@ -651,7 +688,7 @@ void remoteRebootExecute(int act)
 void checkAccumDC() 
 {
 
-int analogInput = 0;
+int analogInput = 3;
 float vout = 0.0;
 float R1 = 96600.0; // resistance of R1 (100K) -see text!
 float R2 = 11600.0; // resistance of R2 (10K) — see text!
@@ -660,7 +697,7 @@ int pinVal = 1;
 
   pinMode(analogInput, INPUT);
   value = analogRead(analogInput);
-  vout = (value * 4.6) / 1024.0; // see text
+  vout = (value * 4.9) / 1024.0; // see text
   accum_DC_V = vout / (R2/(R1+R2));
   if(accum_DC_V < 0.09) {
     accum_DC_V=0.0;  //statement to quash undesired reading !
@@ -727,79 +764,12 @@ void remoteTermostat_check()
       }
   }
        
-  if(boiler.ControlOn){
-      if(millis() > boiler.ControlUntilTime){ // закончен период работы ардуино-термостата, переходим на штатный
-        str = "boiler: termostat stop.";
-        trace( str); 
-        esp.addEvent2Buffer(8, str);
-
-        boiler.ControlOn = false;
-        digitalWrite(PIN22, HIGH);
-        digitalWrite(PIN23, HIGH);
-        pinMode(PIN22, INPUT);
-        pinMode(PIN23, INPUT);
-        return;      
-      }
-
-      double t = dht[0].readTemperature();
-      unsigned long ms = boiler.ControlUntilTime - millis();
-      unsigned int h = (ms / (60*60000));
-      unsigned int m = (ms % (60*60000)) / 60000;
-      str = "boiler: Target=" + String(boiler.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
-      if( t < boiler.TargetTemp){
-        if(!boiler.CurrentMode){
-          str += " state: Heat on."; 
-          boiler.CurrentMode = true;  
-          digitalWrite(PIN23, LOW);        
-        }
-      }
-      else{
-        if(boiler.CurrentMode){
-          str += " state: Heat off."; 
-          boiler.CurrentMode = false;  
-          digitalWrite(PIN23, HIGH);        
-        }
-      }
-      
-      trace( str); 
-      esp.addEvent2Buffer(8, str);
-    }
-
-  if(heating_cable.ControlOn){
-      if(millis() > heating_cable.ControlUntilTime){ // закончен период работы ардуино-термостата греющего кабеля
-        str = "heating_cable: termostat stop.";
-        trace( str); 
-        esp.addEvent2Buffer(8, str);
-        
-        heating_cable.ControlOn = false;
-        digitalWrite(PIN27, HIGH);
-        pinMode(PIN27, INPUT);
-        return;      
-      }
-
-      double t = readDallasTemp(&dallasTemp[1]);
-      unsigned long ms = heating_cable.ControlUntilTime - millis();
-      unsigned int h = (ms / (60*60000));
-      unsigned int m = (ms % (60*60000)) / 60000;
-      str = "heating_cable: Target=" + String(heating_cable.TargetTemp) + " Current=" + String(t) + " Left=" + String(h) + "h " + String(m) + "m;";
-      if( t < heating_cable.TargetTemp){
-        if(!heating_cable.CurrentMode){
-          str += " state: Heat on."; 
-          heating_cable.CurrentMode = true;  
-          digitalWrite(PIN27, LOW);        
-        }
-      }
-      else{
-        if(heating_cable.CurrentMode){
-          str += " state: Heat off."; 
-          heating_cable.CurrentMode = false;  
-          digitalWrite(PIN27, HIGH);        
-        }
-      }
-      
-      trace( str); 
-      esp.addEvent2Buffer(8, str);
-    }
+  if(boiler.ControlOn)
+     boiler.processing();
+  if(heating_cable.ControlOn)
+    heating_cable.processing();
+  if(vegetableStorage.ControlOn)
+    vegetableStorage.processing();
 }
 
 //------------------------------------------------------------------------
@@ -867,10 +837,11 @@ void setup()
   digitalWrite(state_led_pin, d.ledState);
   
   sens_setup();
-  for(short i=0;i<3;i++){
+  for(short i=0;i<MAX_DALLAS_SENS;i++){
   dallasTemp[i].begin();
   }
-
+  //temp_check();
+  
   esp.check_Wait_Internet(); 
     
   esp.addEvent2Buffer(1,"");
@@ -885,6 +856,7 @@ void loop()
 {
   //temp_check();
   //sens.checkActivated();
+  //checkAccumDC();
   //return;
   
  esp.checkIdle();
