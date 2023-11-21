@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  25-12-2020
+ Last changed:  21-11-2023
 */
 
 #include "Arduino.h"
@@ -245,7 +245,10 @@ void ESP_WIFI::addInfo2Buffer(String str)
 //------------------------------------------------------------------------
 void ESP_WIFI::addEvent2Buffer(short id, String msgText)
 {
-  addInfo2Buffer("{\"type\":\"E\",\"id\":" + String(id) + ",\"text\":\"" + msgText + "\"}");  
+  if(msgText.startsWith("{"))
+    addInfo2Buffer("{\"type\":\"E\",\"id\":" + String(id) + ",\"text\":" + msgText + "}");  
+  else
+    addInfo2Buffer("{\"type\":\"E\",\"id\":" + String(id) + ",\"text\":\"" + msgText + "\"}");  
 }
 
 //------------------------------------------------------------------------
