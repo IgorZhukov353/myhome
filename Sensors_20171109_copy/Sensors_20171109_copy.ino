@@ -201,10 +201,11 @@ short pin;
 short pin2;
 String name;
 short tempSensorId;
+short delta;
 
 short TargetTemp;                 // целевая температура
 bool  CurrentMode;                // текущий режим ардуино-термостата
-Boiler(short ppin, String pname,short ptempSensorId, short ppin2=0){pin=ppin; name=pname; pin2=ppin2; tempSensorId=ptempSensorId;};
+Boiler(short ppin, String pname,short ptempSensorId, short ppin2=0, short pdelta=0){pin=ppin; name=pname; pin2=ppin2; tempSensorId=ptempSensorId; delta=pdelta;};
 void init(String response,short ind2)
   {
         String str = name + ": termostat init.";
@@ -213,10 +214,10 @@ void init(String response,short ind2)
         ind2++;
         short ind = response.indexOf(";", ind2);
         TargetTemp = atoi(response.substring(ind2, ind).c_str());  
-        if(!TargetTemp){
-          trace( "Error target temp reading!");  
-          return;
-          }
+        // if(!TargetTemp){
+        //   trace( "Error target temp reading!");  
+        //   return;
+        //   }
         ind++;
         ind2 = response.indexOf(";", ind);
         ControlUntilTime = atoi(response.substring(ind, ind2).c_str());
@@ -271,17 +272,19 @@ void processing()
         }
       }
       else{
-        if(CurrentMode){
-          str += " state: Heat off."; 
-          CurrentMode = false;  
-          digitalWrite(pin, HIGH);        
+        if((t + delta) > TargetTemp){
+          if(CurrentMode){
+            str += " state: Heat off."; 
+            CurrentMode = false;  
+            digitalWrite(pin, HIGH);        
+          }
         }
       }
       
       trace( str); 
       esp.addEvent2Buffer(8, str);
   };
-} boiler(23,"boiler",1,22), heating_cable(27,"heating_cable",4), vegetableStorage(31,"heating_vegetable_storage", 7);  
+} boiler(23,"boiler",1,22), heating_cable(27,"heating_cable",4), vegetableStorage(31,"heating_vegetable_storage", 7, 0, 5);  
 
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,
