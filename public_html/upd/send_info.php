@@ -1,5 +1,6 @@
 <?php
 // izh 2019-11-14 (C)
+// last update 2023-11-21
 // через POST или GET
 /* пример запроса
 POST /upd/send_info.php HTTP/1.1
@@ -10,7 +11,6 @@ Cache-Control: no-cache
 
 str=[{"type":"S","id":1,"v":1},{"type":"T","id":1,"temp":12,"hum":80},{"type":"E","text":"hello, world!"},{"type":"E","id":6,"text":"test 6"}]
 */
-//require_once "bbt.php"; // подключаем класс
 
 if(isset($_POST["str"]) == true)
 	$str = $_POST["str"];
@@ -47,9 +47,6 @@ mysqli_set_charset($link, 'utf8');
 $result = mysqli_query($link, "SET time_zone = '+03:00'");
 
 try {
-//	$api_key    = 'qrkhWIhtxkYu8KYwmtyIxyAc';	/*izh 2019-11-01*/
-//	$secret_key = 'KJxy285VsrVWG0rJ0yhiEzfcxCHiWWOx';
-//	$bbt = new Beebotte($api_key, $secret_key);
 
 	for($i = 0; $i < count($result_parse); $i++){
 		$type = $result_parse[$i]->type;
@@ -71,8 +68,6 @@ try {
 				break;
 			if( $id == 0)
 				break;
-//			if($id > 2)	
-//			    $bbt->write("MyHome", "s".$id, $value); /*izh 2019-11-14*/
 			
 			//echo "type=S id=". $id. " date=" . $date . " v=".$value . "\n";
 			if ($stmt = mysqli_prepare($link, "INSERT INTO Sensor_Activity(Sensor_ID,Value,Date) VALUES (?,?,?)")) {
@@ -91,9 +86,6 @@ try {
 			if(  $id == 0)
 				break;
 			
-//			if( $t > -100) /* izh 2019-12-2 ошибка датчика */
-//			    $bbt->write("MyHome", "t".$id, $t); /*izh 2019-11-01*/
-			
 			//echo "type=T id=". $id. " date=" . $date . " t=".$t . " h=".$h ."\n";
 			if ($stmt = mysqli_prepare($link, "INSERT INTO Thermometer_Info(Thermometer_ID,Temp_Value,Humidity_Value,Date) VALUES (?,?,?,?)")) {
     				mysqli_stmt_bind_param($stmt, "iiis", $id, $t, $h, $date); /* bind parameters for markers */
@@ -103,9 +95,16 @@ try {
     				mysqli_stmt_close($stmt);	/* close statement */
 				} 
 			}
-		else if($type == "E"){		
-            		$text = (isset($result_parse[$i]->text) == true)? $result_parse[$i]->text : null ;
-
+		else if($type == "E"){	
+		        if(isset($result_parse[$i]->text)){
+		            if( is_object($result_parse[$i]->text))
+            		    $text = json_encode($result_parse[$i]->text);
+            		else
+            		    $text = $result_parse[$i]->text;
+                }
+                else
+                    $text = null;
+                    
 			//echo "type=E id=". $id. " date=" . $date . " text=". $text ."\n";
 			if ($stmt = mysqli_prepare($link, "INSERT INTO Event(Event_Type_ID,Dop_Info,Date) VALUES (?,?,?)")) {
     				mysqli_stmt_bind_param($stmt, "iss", $id, $text, $date); /* bind parameters for markers */
