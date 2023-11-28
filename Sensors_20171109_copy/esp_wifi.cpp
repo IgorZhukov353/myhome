@@ -34,7 +34,7 @@ const String WPASS  = "tgbvgy789";
 //const String HOST_STR = "santalov.ru";
 //const String HOST_STR = "f0195241.xsph.ru";
 const char *HOST_STR = "igorzhukov353.h1n.ru"; 
-const char *HOST_IP_STR = "145.239.233.78"; 
+const char *HOST_IP_STR = "81.90.182.128"; 
 //const char *HOST_IP_STR = "igorzhukov353.h1n.ru";
 
 const char *ok_str = (char*)"OK";
