@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  21-11-2023
+  Last changed:  13-06-2024
 */
-#define VERSION "Ver 1.150 of 21-11-2023 Igor Zhukov (C)"
+#define VERSION "Ver 1.150 of 13-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -134,7 +134,7 @@ struct DATA {
     byte ledState;
     byte tmp_value;
     alarm_info a[MAX_ALARMS] = {
-      { 1, 0, 0, LOW, ALARM_ON, PIN6, 0, false, false, false },   //pir1
+      { 1, 0, 0, LOW, ALARM_OFF, PIN6, 0, false, false, false },   //pir1
       { 2, 0, 0, LOW, ALARM_ON, PIN5, 0, false, false, false },   //pir2 гараж
       { 3, 0, 0, HIGH, ALARM_ON, PIN7, 0, false, false, false },  //дверь № 1
       { 4, 0, 0, HIGH, ALARM_ON, PIN8, 0, false, false, false },  //дверь № 2
