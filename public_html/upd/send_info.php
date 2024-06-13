@@ -60,7 +60,7 @@ try {
 		else
 			$id = $result_parse[$i]->id;
         	
-        $date = (isset($result_parse[$i]->date) == true)? $result_parse[$i]->date: null;
+        $date = (isset($result_parse[$i]->date) == true)? $result_parse[$i]->date: date("Y-m-d H:i:s");
 
 		if($type == "S"){
 			$value = $result_parse[$i]->v;
