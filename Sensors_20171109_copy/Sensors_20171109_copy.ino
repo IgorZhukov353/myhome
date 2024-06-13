@@ -101,7 +101,7 @@ OneWire oneWire[MAX_DALLAS_SENS] = { OneWire(PIN12), OneWire(PIN32), OneWire(PIN
 DallasTemperature dallasTemp[MAX_DALLAS_SENS] = { DallasTemperature(&oneWire[0]), DallasTemperature(&oneWire[1]), DallasTemperature(&oneWire[2]), DallasTemperature(&oneWire[3]), DallasTemperature(&oneWire[4]) };
 
 DHT dht[3] = { DHT(PIN2, DHT22), DHT(PIN3, DHT22), DHT(PIN4, DHT22) };
-short prevTemp[MAX_TEMP_SENS] = { -100, -100, -100, -100, -100, -100, -100,-100 }, prevHum[MAX_TEMP_SENS];  // последние показания датчика температуры и влажности
+short prevTemp[MAX_TEMP_SENS] = { -100, -100, -100, -100, -100, -100, -100, -100 }, prevHum[MAX_TEMP_SENS];  // последние показания датчика температуры и влажности
 
 #define state_led_pin PIN13
 #define SENS_CHECK_TIMEOUT 100
@@ -134,23 +134,23 @@ struct DATA {
     byte ledState;
     byte tmp_value;
     alarm_info a[MAX_ALARMS] = {
-      { 1, 0, 0, LOW, ALARM_OFF, PIN6, 0, false, false, false },   //pir1
+      { 1, 0, 0, LOW, ALARM_OFF, PIN6, 0, false, false, false },  //pir1
       { 2, 0, 0, LOW, ALARM_ON, PIN5, 0, false, false, false },   //pir2 гараж
       { 3, 0, 0, HIGH, ALARM_ON, PIN7, 0, false, false, false },  //дверь № 1
       { 4, 0, 0, HIGH, ALARM_ON, PIN8, 0, false, false, false },  //дверь № 2
       { 5, 0, 0, LOW, ALARM_ON, PIN33, 0, false, true, true },    // наличие питания // new
       { 6, 0, 0, LOW, ALARM_OFF, PIN9, 0, false, false, false },  //pir3 кухня
       { 7, 0, 0, LOW, ALARM_ON, PIN28, 0, false, true, true },    //уровень в дрен колодце
-      { 8, 0, 0, LOW, ALARM_ON, PIN35, 0, false, false, false },   //pir4 площадка 2 этаж
-      { 9, 0, 0, LOW, ALARM_ON, PIN39, 0, false, true, true },    //уровень в бочке полива
+      { 8, 0, 0, LOW, ALARM_ON, PIN35, 0, false, false, false },  //pir4 площадка 2 этаж
+      { 9, 1, 1, HIGH, ALARM_ON, PIN39, 0, false, true, true },   //уровень в бочке полива
     };
   };
 } d;
 
-bool traceInit = false;                // признак инициализации трассировки
-bool powerAC_off = false;              // признак отсутствия внешнего напряжения 220В
-float accum_DC_V;                      // напряжение на аккумуляторе БП
-unsigned long powerAC_ON_OFF_Time;     // время отключения внешнего напряжения 220В
+bool traceInit = false;             // признак инициализации трассировки
+bool powerAC_off = false;           // признак отсутствия внешнего напряжения 220В
+float accum_DC_V;                   // напряжение на аккумуляторе БП
+unsigned long powerAC_ON_OFF_Time;  // время отключения внешнего напряжения 220В
 //bool power_MINI_PC_CAM22_off = false;  // признак отключения MINI-PC и CAM22 (они сидят на БП с аккумулятором)
 
 /*--------------------------------------------------------------------------------*/
@@ -163,6 +163,8 @@ unsigned long timerResetOstatok;         // переходящее количе�
 short checked_ip = 7;
 byte tcp_last_byte[10] = { 9, 22, 23, 26, 28, 29 };  // список пингуемых ip
 byte pump_force;                                     // =1 включить дренажный насос в установленное время независимо от значения датчика уровня
+byte open_tap_time = 17,                             // в это время открыть кран для полива на 120 мин, если > 23, то не открывать
+  fill_tank_time = 5;                                // в это время открыть клапан для заполнение бочки на 30 мин, если > 23 или уровень == 0, то не открывать
 
 void blinky_check();
 void sens_check();
@@ -177,14 +179,25 @@ float readDallasTemp(DallasTemperature *d);
 void remoteRebootExecute(int act);
 float getTemp(short tempSensorId);
 
+void fill_tank_check();
+void open_tap_check();
+
 Activity state_led_blink(1000, blinky_check);
 Activity sens(SENS_CHECK_TIMEOUT, sens_check);
 Activity tempHum(TEMP_TIMEOUT, temp_check);
 Activity readCommand(COMMAND_TIMEOUT, command_check);
 Activity remoteTermostat(BOILER_TIMEOUT, remoteTermostat_check);
 Activity sendError(COMMAND_TIMEOUT, sendError_check);
-Activity sendBuffer2Site(1000, sendBuffer2Site_check);  // передача буфера информации раз в 1 секунду (если есть что)
+Activity sendBuffer2Site(2000, sendBuffer2Site_check);  // передача буфера информации раз в 2 секунду (если есть что)
 Activity checkPump(((60000 * 60)), checkPump_check);
+Activity check_fill_tank((60000), fill_tank_check);
+Activity check_open_tap((60000), open_tap_check);
+
+#define DC_12V_ON_PIN 25
+#define VALVE_ON_PIN 38           //(TEMP_PIN+1)
+#define LEVEL_PIN 39              //(TEMP_PIN+2)
+#define VALVE_OR_WATERTAP_PIN 40  //PIN (TEMP_PIN+3)
+#define WATERTAP_ON_PIN 41        //(TEMP_PIN+4)
 
 //--------------------------------------------------------------------------------
 #include "device.h"
@@ -193,7 +206,9 @@ class Boiler
   pump(26, "pump"),
   boiler(23, "boiler", 1, 22),
   heating_cable(27, "hc", 4),
-  vegetableStorage(31, "hvs", 7, 0, 5);
+  vegetableStorage(31, "hvs", 7, 0, 5),
+  fill_tank(VALVE_ON_PIN, "fill_tank"),
+  open_tap(VALVE_OR_WATERTAP_PIN, "open_tap");
 
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,
@@ -281,7 +296,7 @@ void sens_check() {
     if (d.a[i].on == ALARM_OFF                            // не активен
         || (!d.sysState && !d.a[i].check_for_any_status)  // проверка датчиков отключена и датчик можно не проверять
         || d.a[i].status_led_no_change == true            // при изменении статуса датчика не менять состояние светодиода
-       )
+    )
       continue;
 
     if (d.a[i].change_time != 0) {
@@ -320,7 +335,7 @@ float readDallasTemp(DallasTemperature *d) {
     if (ft > -100) {
       break;
     }
-    dallasTemp[ii].begin();    // повторная инициализация, часто помогает
+    dallasTemp[ii].begin();  // повторная инициализация, часто помогает
     delay(50);
   }
   return ft;
@@ -468,6 +483,24 @@ void responseProcessing(String response) {
         heating_cable.init(response, ind2);
       } else if (cmd == "heating_vegetable_storage") {
         vegetableStorage.init(response, ind2);
+      } else
+
+        if (cmd == "fill_tank") {  // izh 13-06-2024
+        pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
+        fill_tank.init(response, ind2, 1);
+        check_fill_tank.timeout = 1000;
+
+      } else if (cmd == "open_tap") {
+        open_tap.init(response, ind2, 1);
+        check_open_tap.timeout = 10000;
+
+      } else if (cmd == "fill_tank_stop") {
+        if (fill_tank.ControlOn)
+          fill_tank.ControlUntilTime = 0;
+      } else if (cmd == "open_tap_stop") {
+        if (open_tap.ControlOn)
+          open_tap.ControlUntilTime = 0;
       }
 
       else if (cmd == "setdatetime") {  // izh 19-02-2020 проверка местного времени, если надо корректировка
@@ -532,6 +565,10 @@ void responseProcessing(String response) {
         } else if (ParamName == "param_pump_force") {
           pump_force = ParamValue.substring(0, 1).toInt();
           //Serial.println(pump_force);
+        } else if (ParamName == "fill_tank_time") {
+          fill_tank_time = ParamValue.toInt();
+        } else if (ParamName == "open_tap_time") {
+          open_tap_time = ParamValue.toInt();
         }
       }
     }
@@ -577,34 +614,7 @@ void checkAccumDC() {
 //------------------------------------------------------------------------
 // функция термостата газового котла и не только
 void remoteTermostat_check() {
-  String str;
-
   checkAccumDC();
-  //trace("powerAC_off=" + String(powerAC_off) + ";" + String(power_MINI_PC_CAM22_off) + ";" + String((millis() - powerAC_ON_OFF_Time)) + ";");
-
-  // if (powerAC_off) {
-  //   if (!power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 120000) {  // 25-12-2020 если > 2 мин после отключения AC 220, то вырубаем MINI-PC и CAM22 и ждем когда появится AC 220
-  //     str = "POWER OFF - MINI-PC,CAM22 VIN=" + String(accum_DC_V);
-  //     ;
-  //     pinMode(PIN25, OUTPUT);
-  //     digitalWrite(PIN25, LOW);
-  //     power_MINI_PC_CAM22_off = true;
-  //   } else
-  //     str = "VIN=" + String(accum_DC_V) + " Power OFF=" + String(power_MINI_PC_CAM22_off);
-  //   trace(str);
-  //   esp.addEvent2Buffer(9, str);
-  // } else {
-  //   if (power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 15000) {  // AC 220 появилось, то через 15 сек , MINI_PC и CAM22 были выключеы
-  //     str = "POWER ON - MINI-PC,CAM22";
-  //     trace(str);
-  //     pinMode(PIN25, OUTPUT);
-  //     digitalWrite(PIN25, HIGH);
-  //     pinMode(PIN25, INPUT);
-  //     power_MINI_PC_CAM22_off = false;
-  //     esp.addEvent2Buffer(9, str);
-  //   }
-  // }
-
   if (pump.ControlOn)
     pump.processing();
   if (boiler.ControlOn)
@@ -640,7 +650,12 @@ void checkPump_check()  // запускается один раз в час
   if (now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)) {  // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
     responseProcessing("command=pump;15;");
   }
-
+  if (fill_tank_time < 24 && now.hour() == fill_tank_time && d.a[8].value == 1) {  // наполнить бочку если не полная
+    responseProcessing("command=fill_tank;30;");
+  }
+  if (open_tap_time < 24 && now.hour() == open_tap_time) {  // полить в теплице
+    responseProcessing("command=open_tap;120;");
+  }
   //esp.addEvent2Buffer(12, "hour=" + String(now.hour()));
   if (now.hour() == 0) {
     esp.send2site("get_date.php");  // в 00 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
@@ -648,6 +663,57 @@ void checkPump_check()  // запускается один раз в час
   }
 }
 
+//------------------------------------------------------------------------
+void fill_tank_check()  // запускается один раз в сек, когда работает команда
+{
+  if (fill_tank.ControlOn) {
+    fill_tank.processing();
+    if (fill_tank.ControlOn == 0) {
+      check_fill_tank.timeout = 60000;
+      pinMode(DC_12V_ON_PIN, OUTPUT);
+      digitalWrite(DC_12V_ON_PIN, HIGH);
+
+    } else {
+      if (d.a[8].value == 1) {
+        responseProcessing("command=fill_tank_stop;");
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------
+void open_tap_check()  // запускается один раз в 10 сек, когда работает команда
+{
+  if (open_tap.ControlOn) {
+    bool saved = open_tap.CurrentMode;
+    open_tap.processing();
+    if (open_tap.ControlOn == 0) {  // конец работы VALVE_OR_WATERTAP_PIN-> HIGH питание переключилось с крана на клапан
+      pinMode(DC_12V_ON_PIN, OUTPUT);
+      digitalWrite(DC_12V_ON_PIN, HIGH);  // отключаем питание 12В
+      pinMode(WATERTAP_ON_PIN, OUTPUT);
+      digitalWrite(WATERTAP_ON_PIN, HIGH);  // переключаем полярность на закрывание крана
+      if (open_tap.pin2 == -1) {            // кран нужно закрыть
+        pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
+        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);  // переключаем питание с клапана на кран
+        pinMode(DC_12V_ON_PIN, OUTPUT);
+        digitalWrite(DC_12V_ON_PIN, LOW);  // подаем питание
+
+        open_tap.CurrentMode = true;
+        open_tap.ControlUntilTime = millis() + 10000;  // продляем еще работу на 10 сек чтобы кран успел закрыться
+        open_tap.ControlOn = true;
+        open_tap.pin2 = 0;  // теперь точно конец работы команды
+      }
+    } else {
+      if (!saved && open_tap.CurrentMode) {  // первый проход VALVE_OR_WATERTAP_PIN-> LOW переключаем питание с клапана на кран
+        pinMode(WATERTAP_ON_PIN, OUTPUT);
+        digitalWrite(WATERTAP_ON_PIN, LOW);  // переключаем полярность на открывание
+        pinMode(DC_12V_ON_PIN, OUTPUT);
+        digitalWrite(DC_12V_ON_PIN, LOW);  // подаем питание
+        open_tap.pin2 = -1;                // выставляем признак на закрытие крана
+      }
+    }
+  }
+}
 //------------------------------------------------------------------------
 void esp_power_switch(bool p) {
   //return;
@@ -689,11 +755,6 @@ void setup() {
 
 //------------------------------------------------------------------------
 void loop() {
-  //temp_check();
-  //sens.checkActivated();
-  //checkAccumDC();
-  //return;
-
   esp.checkIdle();
   sendError.checkActivated();
 
@@ -703,6 +764,8 @@ void loop() {
   readCommand.checkActivated();
   remoteTermostat.checkActivated();
   checkPump.checkActivated();
+  check_fill_tank.checkActivated();
+  check_open_tap.checkActivated();
 
   unsigned long t = millis();
   if (lastWatchDogOK_Sended2BD == 0         // первая проверка

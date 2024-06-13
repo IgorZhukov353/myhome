@@ -40,13 +40,13 @@ class Boiler : public DeviceControl {
       delta = pdelta;
       TargetTemp = 0;
     };
-    void init(String response, short ind2)
+    void init(String response, short ind2, short parInHours=0)
     {
       trace(name + ": init.");
 
       short inHours;  // коэфициент время работы для насоса в минутах, для остальных в часах
       short ind;
-      if ( name != "pump") {  // у насоса нет целевой температуры
+      if ( name != "pump" || parInHours == 0) {  // у насоса нет целевой температуры
         ind2++;
         ind = response.indexOf(";", ind2);
         TargetTemp = response.substring(ind2, ind).toInt();
