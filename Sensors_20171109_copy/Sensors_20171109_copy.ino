@@ -3,7 +3,7 @@
   Created:       01-11-2017
   Last changed:  13-06-2024	-+
 */
-#define VERSION "Ver 1.150 of 13-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.151 of 13-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -65,12 +65,12 @@
 #define PIN34 34  // Датчик температуры DS18B20 (площадка 2 этаж)
 #define PIN35 35  // PIR 4 (Движение площадка 2 этаж)
 #define PIN36 36  // Датчик температуры DS18B20 (гараж овощной ящик)
-#define PIN37 37
-#define PIN38 38
-#define PIN39 39
+#define PIN37 37  // Датчик температуры DS18B20 (теплица)
+#define PIN38 38  // Реле 1 INT1 - клапан подачи воды в бочку полива (вкл 12v)
+#define PIN39 39  // Датчик уровня воды в бочке полива 1-неполная, 0-полная
 
-#define PIN40 40
-#define PIN41 41
+#define PIN40 40  // Реле 1 INT2 - переключатель между клапаном подачи воды в бочку полива и актуатором крана воды из бочки на капельный полив
+#define PIN41 41  // Реле 2 INT1,INT2 - вкл/выкл (смена полярности питания 12v) актуатором крана воды из бочки на капельный полив
 #define PIN42 42
 #define PIN43 43
 #define PIN44 44
@@ -92,16 +92,16 @@ RTC_DS1307 RTC;  // часы реального времени
 ESP_WIFI esp;    // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
-#define MAX_TEMP_SENS 7
-#define MAX_DALLAS_SENS 4
+#define MAX_TEMP_SENS 8
+#define MAX_DALLAS_SENS 5
 
-OneWire oneWire[MAX_DALLAS_SENS] = { OneWire(PIN12), OneWire(PIN32), OneWire(PIN34), OneWire(PIN36) };  //
+OneWire oneWire[MAX_DALLAS_SENS] = { OneWire(PIN12), OneWire(PIN32), OneWire(PIN34), OneWire(PIN36), OneWire(PIN37) };  //
 
 // Pass our oneWire reference to Dallas Temperature.
-DallasTemperature dallasTemp[MAX_DALLAS_SENS] = { DallasTemperature(&oneWire[0]), DallasTemperature(&oneWire[1]), DallasTemperature(&oneWire[2]), DallasTemperature(&oneWire[3]) };
+DallasTemperature dallasTemp[MAX_DALLAS_SENS] = { DallasTemperature(&oneWire[0]), DallasTemperature(&oneWire[1]), DallasTemperature(&oneWire[2]), DallasTemperature(&oneWire[3]), DallasTemperature(&oneWire[4]) };
 
 DHT dht[3] = { DHT(PIN2, DHT22), DHT(PIN3, DHT22), DHT(PIN4, DHT22) };
-short prevTemp[MAX_TEMP_SENS] = { -100, -100, -100, -100, -100, -100, -100 }, prevHum[MAX_TEMP_SENS];  // последние показания датчика температуры и влажности
+short prevTemp[MAX_TEMP_SENS] = { -100, -100, -100, -100, -100, -100, -100,-100 }, prevHum[MAX_TEMP_SENS];  // последние показания датчика температуры и влажности
 
 #define state_led_pin PIN13
 #define SENS_CHECK_TIMEOUT 100
@@ -111,7 +111,7 @@ short prevTemp[MAX_TEMP_SENS] = { -100, -100, -100, -100, -100, -100, -100 }, pr
 #define COMMAND_TIMEOUT (60000 * 10)
 #define BOILER_TIMEOUT (60000 * 1)
 
-#define MAX_ALARMS 8
+#define MAX_ALARMS 9
 #define ALARM_ON 1
 #define ALARM_OFF 0
 
@@ -138,12 +138,11 @@ struct DATA {
       { 2, 0, 0, LOW, ALARM_ON, PIN5, 0, false, false, false },   //pir2 гараж
       { 3, 0, 0, HIGH, ALARM_ON, PIN7, 0, false, false, false },  //дверь № 1
       { 4, 0, 0, HIGH, ALARM_ON, PIN8, 0, false, false, false },  //дверь № 2
-      //        {5,0,0, HIGH,ALARM_ON, A1,0,true,true,true},       // наличие питания
-      //        {5,0,0, HIGH,ALARM_ON, PIN33,0,false,true,true},       // наличие питания // пока как было
       { 5, 0, 0, LOW, ALARM_ON, PIN33, 0, false, true, true },    // наличие питания // new
       { 6, 0, 0, LOW, ALARM_OFF, PIN9, 0, false, false, false },  //pir3 кухня
       { 7, 0, 0, LOW, ALARM_ON, PIN28, 0, false, true, true },    //уровень в дрен колодце
-      { 8, 0, 0, LOW, ALARM_ON, PIN35, 0, false, false, false }   //pir4 площадка 2 этаж
+      { 8, 0, 0, LOW, ALARM_ON, PIN35, 0, false, false, false },   //pir4 площадка 2 этаж
+      { 9, 0, 0, LOW, ALARM_ON, PIN39, 0, false, true, true },    //уровень в бочке полива
     };
   };
 } d;
@@ -152,7 +151,7 @@ bool traceInit = false;                // признак инициализац�
 bool powerAC_off = false;              // признак отсутствия внешнего напряжения 220В
 float accum_DC_V;                      // напряжение на аккумуляторе БП
 unsigned long powerAC_ON_OFF_Time;     // время отключения внешнего напряжения 220В
-bool power_MINI_PC_CAM22_off = false;  // признак отключения MINI-PC и CAM22 (они сидят на БП с аккумулятором)
+//bool power_MINI_PC_CAM22_off = false;  // признак отключения MINI-PC и CAM22 (они сидят на БП с аккумулятором)
 
 /*--------------------------------------------------------------------------------*/
 bool watchDogOK_Sended2BD = 0;           // признак отправки дежурного пакета в БД
@@ -321,6 +320,7 @@ float readDallasTemp(DallasTemperature *d) {
     if (ft > -100) {
       break;
     }
+    dallasTemp[ii].begin();    // повторная инициализация, часто помогает
     delay(50);
   }
   return ft;
@@ -582,28 +582,28 @@ void remoteTermostat_check() {
   checkAccumDC();
   //trace("powerAC_off=" + String(powerAC_off) + ";" + String(power_MINI_PC_CAM22_off) + ";" + String((millis() - powerAC_ON_OFF_Time)) + ";");
 
-  if (powerAC_off) {
-    if (!power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 120000) {  // 25-12-2020 если > 2 мин после отключения AC 220, то вырубаем MINI-PC и CAM22 и ждем когда появится AC 220
-      str = "POWER OFF - MINI-PC,CAM22 VIN=" + String(accum_DC_V);
-      ;
-      pinMode(PIN25, OUTPUT);
-      digitalWrite(PIN25, LOW);
-      power_MINI_PC_CAM22_off = true;
-    } else
-      str = "VIN=" + String(accum_DC_V) + " Power OFF=" + String(power_MINI_PC_CAM22_off);
-    trace(str);
-    esp.addEvent2Buffer(9, str);
-  } else {
-    if (power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 15000) {  // AC 220 появилось, то через 15 сек , MINI_PC и CAM22 были выключеы
-      str = "POWER ON - MINI-PC,CAM22";
-      trace(str);
-      pinMode(PIN25, OUTPUT);
-      digitalWrite(PIN25, HIGH);
-      pinMode(PIN25, INPUT);
-      power_MINI_PC_CAM22_off = false;
-      esp.addEvent2Buffer(9, str);
-    }
-  }
+  // if (powerAC_off) {
+  //   if (!power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 120000) {  // 25-12-2020 если > 2 мин после отключения AC 220, то вырубаем MINI-PC и CAM22 и ждем когда появится AC 220
+  //     str = "POWER OFF - MINI-PC,CAM22 VIN=" + String(accum_DC_V);
+  //     ;
+  //     pinMode(PIN25, OUTPUT);
+  //     digitalWrite(PIN25, LOW);
+  //     power_MINI_PC_CAM22_off = true;
+  //   } else
+  //     str = "VIN=" + String(accum_DC_V) + " Power OFF=" + String(power_MINI_PC_CAM22_off);
+  //   trace(str);
+  //   esp.addEvent2Buffer(9, str);
+  // } else {
+  //   if (power_MINI_PC_CAM22_off && (millis() - powerAC_ON_OFF_Time) > 15000) {  // AC 220 появилось, то через 15 сек , MINI_PC и CAM22 были выключеы
+  //     str = "POWER ON - MINI-PC,CAM22";
+  //     trace(str);
+  //     pinMode(PIN25, OUTPUT);
+  //     digitalWrite(PIN25, HIGH);
+  //     pinMode(PIN25, INPUT);
+  //     power_MINI_PC_CAM22_off = false;
+  //     esp.addEvent2Buffer(9, str);
+  //   }
+  // }
 
   if (pump.ControlOn)
     pump.processing();
