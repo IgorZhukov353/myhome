@@ -450,7 +450,7 @@ void responseProcessing(String response) {
     ind2 = response.indexOf(";", ind);  // поиск первой точки-запятой
     if (ind2 >= 0) {
       String cmd = response.substring(ind, ind2);
-      str = "cmd=" + cmd;
+      str = "cmd=" + cmd + " response=" + response;
       trace(str);
       esp.addEvent2Buffer(7, str);
 
