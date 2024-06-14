@@ -496,6 +496,7 @@ void responseProcessing(String response) {
         digitalWrite(VALVE_ON_PIN, HIGH);
         //trace("1 response=" + response.substring(ind2, response.length()));
         fill_tank.init(response, ind2, 1);
+        digitalWrite(DC_12V_ON_PIN, LOW); // включить питание 12В
         check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
       } else 
         if (cmd == "open_tap" && !fill_tank.ControlOn) {

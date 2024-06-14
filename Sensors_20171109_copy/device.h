@@ -32,6 +32,8 @@ class Boiler : public DeviceControl {
     float currTemp;                   // текущая температура
     short delta;                      // выключать при температуре (TargetTemp + delta)
     bool  CurrentMode;                // текущий режим ардуино-термостата
+    unsigned long putInfoLastTime;    // время отправки инфо (1 раз в мин)
+    
     Boiler(short ppin, String pname, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0): DeviceControl(ppin)  {
       //  pin = ppin;
       name = pname;
@@ -43,6 +45,7 @@ class Boiler : public DeviceControl {
     void init(String response, short ind2, short parInHours=0)
     {
       trace(name + ": init.");
+      putInfoLastTime = 0;
       //trace("2 response=" + response.substring(ind2, response.length()));
       
       short inHours;  // коэфициент время работы для насоса в минутах, для остальных в часах
@@ -84,6 +87,7 @@ class Boiler : public DeviceControl {
           activeWorkTime += millis() - tmpWorkTime;
         }
         ControlOn = false;
+        putInfoLastTime = 0;
         digitalWrite(pin, HIGH);
         pinMode(pin, INPUT);
         if (pin2 > 0) {
@@ -109,7 +113,10 @@ class Boiler : public DeviceControl {
           }
         }
       }
-      putInfo();
+      if(millis() - putInfoLastTime > 60000){
+        putInfo();
+        putInfoLastTime = millis();
+      }
     };
     void putInfo()
     {
