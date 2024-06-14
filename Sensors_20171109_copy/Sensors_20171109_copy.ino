@@ -108,7 +108,7 @@ short prevTemp[MAX_TEMP_SENS] = { -100, -100, -100, -100, -100, -100, -100, -100
 #define SENS_TIMEOUT 500
 #define TEMP_TIMEOUT (60000 * 5)      // проверка температуры и влажности раз в 5 минут
 #define WATCHDOG_TIMEOUT (60000 * 60) // дежурные пакеты
-#define COMMAND_TIMEOUT (60000 * 10)  // проверка команд для выполнения
+#define COMMAND_TIMEOUT (60000 * 1)  // проверка команд для выполнения
 #define BOILER_TIMEOUT (60000 * 1)
 
 #define MAX_ALARMS 9
@@ -488,15 +488,22 @@ void responseProcessing(String response) {
       } else
 
         if (cmd == "fill_tank" && !open_tap.ControlOn) {  // izh 13-06-2024
-        pinMode(DC_12V_ON_PIN, OUTPUT);
+        pinMode(DC_12V_ON_PIN, OUTPUT);         // все в исходное состояние
+        digitalWrite(DC_12V_ON_PIN, HIGH); 
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
+        pinMode(VALVE_ON_PIN, OUTPUT);
+        digitalWrite(VALVE_ON_PIN, HIGH);
         fill_tank.init(response, ind2, 1);
-        check_fill_tank.timeout = 1000; // сделать вызов процедуры обработки раз в сек
-      } else if (cmd == "open_tap" && !fill_tank.ControlOn) {
-        pinMode(DC_12V_ON_PIN, OUTPUT);
+        check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
+      } else 
+        if (cmd == "open_tap" && !fill_tank.ControlOn) {
+        pinMode(DC_12V_ON_PIN, OUTPUT);         // все в исходное состояние
+        digitalWrite(DC_12V_ON_PIN, HIGH);
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
         pinMode(WATERTAP_ON_PIN, OUTPUT);
+        digitalWrite(WATERTAP_ON_PIN, HIGH);
         open_tap.init(response, ind2, 1);
         check_open_tap.timeout = 10000; // сделать вызов процедуры обработки раз в 10 сек
 
@@ -672,10 +679,17 @@ void checkPump_check()  // запускается один раз в час
 void fill_tank_check()  // запускается один раз в сек, когда работает команда
 {
   if (fill_tank.ControlOn) {
+    trace('fill_tank_check =' + String(d.a[8].value));
     fill_tank.processing();
     if (fill_tank.ControlOn == 0) { // закончили работу
       check_fill_tank.timeout = 60000;
-      digitalWrite(DC_12V_ON_PIN, HIGH); // отключаем питание 12В
+        digitalWrite(DC_12V_ON_PIN, HIGH);  // все в исходное состояние
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
+        digitalWrite(VALVE_ON_PIN, HIGH);
+        pinMode(DC_12V_ON_PIN, INPUT);
+        pinMode(VALVE_ON_PIN, INPUT);
+        pinMode(WATERTAP_ON_PIN, INPUT);
+
     } else {  // в работе
       if (d.a[8].value == 0) {  // бак полон
         responseProcessing("command=fill_tank_stop;");
@@ -708,6 +722,7 @@ void open_tap_check()  // запускается один раз в 10 сек, �
         }
     } else {
       if (!saved && open_tap.CurrentMode) {  // начало работы, первый проход, VALVE_OR_WATERTAP_PIN-> LOW переключаем питание с клапана на кран
+        digitalWrite(DC_12V_ON_PIN, HIGH);
         digitalWrite(WATERTAP_ON_PIN, LOW);  // переключаем полярность на открывание крана
         digitalWrite(DC_12V_ON_PIN, LOW);    // подаем питание
         open_tap.pin2 = -1;                  // выставляем признак на закрытие крана
