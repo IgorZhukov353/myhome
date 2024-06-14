@@ -450,7 +450,7 @@ void responseProcessing(String response) {
     ind2 = response.indexOf(";", ind);  // поиск первой точки-запятой
     if (ind2 >= 0) {
       String cmd = response.substring(ind, ind2);
-      str = "cmd=" + cmd + " response=" + response;
+      str = "cmd=" + cmd; //+ " response=" + response;
       trace(str);
       esp.addEvent2Buffer(7, str);
 
@@ -494,7 +494,7 @@ void responseProcessing(String response) {
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
         pinMode(VALVE_ON_PIN, OUTPUT);
         digitalWrite(VALVE_ON_PIN, HIGH);
-        trace("1 response=" + response);
+        trace("1 response=" + response.substring(ind2, response.length()));
         fill_tank.init(response, ind2, 1);
         check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
       } else 

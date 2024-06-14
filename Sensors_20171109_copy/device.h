@@ -43,7 +43,7 @@ class Boiler : public DeviceControl {
     void init(String response, short ind2, short parInHours=0)
     {
       trace(name + ": init.");
-      trace("2 response=" + response);
+      trace("2 response=" + response.substring(ind2, response.length()));
       
       short inHours;  // коэфициент время работы для насоса в минутах, для остальных в часах
       short ind;
@@ -61,7 +61,7 @@ class Boiler : public DeviceControl {
       ind2 = response.indexOf(";", ind);
       ControlUntilTime = response.substring(ind, ind2).toInt();
       if (!ControlUntilTime) {
-        String err = name + ": Error period reading!.(" + response + ")";
+        String err = name + ": Error period reading!.(" + response.substring(ind,ind2) + ")";
         trace(err);
         esp.addEvent2Buffer(4, err);
         return;
