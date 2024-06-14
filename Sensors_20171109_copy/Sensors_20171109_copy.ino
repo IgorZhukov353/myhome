@@ -494,6 +494,7 @@ void responseProcessing(String response) {
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
         pinMode(VALVE_ON_PIN, OUTPUT);
         digitalWrite(VALVE_ON_PIN, HIGH);
+        trace("1 response=" + response);
         fill_tank.init(response, ind2, 1);
         check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
       } else 

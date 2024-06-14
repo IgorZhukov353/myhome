@@ -43,7 +43,8 @@ class Boiler : public DeviceControl {
     void init(String response, short ind2, short parInHours=0)
     {
       trace(name + ": init.");
-
+      trace("2 response=" + response);
+      
       short inHours;  // коэфициент время работы для насоса в минутах, для остальных в часах
       short ind;
       if ( name != "pump" || parInHours == 0) {  // у насоса нет целевой температуры
