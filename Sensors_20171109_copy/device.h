@@ -60,7 +60,7 @@ class Boiler : public DeviceControl {
       ind2 = response.indexOf(";", ind);
       ControlUntilTime = response.substring(ind, ind2).toInt();
       if (!ControlUntilTime) {
-        String err = name + ": Error period reading!.";
+        String err = name + ": Error period reading!.(" + response + ")";
         trace(err);
         esp.addEvent2Buffer(4, err);
         return;
