@@ -43,11 +43,11 @@ class Boiler : public DeviceControl {
     void init(String response, short ind2, short parInHours=0)
     {
       trace(name + ": init.");
-      trace("2 response=" + response.substring(ind2, response.length()));
+      //trace("2 response=" + response.substring(ind2, response.length()));
       
       short inHours;  // коэфициент время работы для насоса в минутах, для остальных в часах
       short ind;
-      if ( name != "pump" || parInHours == 0) {  // у насоса нет целевой температуры
+      if ( name != "pump" && parInHours == 0) {  // у насоса нет целевой температуры
         ind2++;
         ind = response.indexOf(";", ind2);
         TargetTemp = response.substring(ind2, ind).toInt();
@@ -61,7 +61,7 @@ class Boiler : public DeviceControl {
       ind2 = response.indexOf(";", ind);
       ControlUntilTime = response.substring(ind, ind2).toInt();
       if (!ControlUntilTime) {
-        String err = name + ": Error period reading!.(" + response.substring(ind,ind2) + ")";
+        String err = name + ": Error period reading!";
         trace(err);
         esp.addEvent2Buffer(4, err);
         return;
