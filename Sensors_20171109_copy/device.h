@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       21-11-2023
- Last changed:  21-11-2023
+ Last changed:  17-06-2024
 */
 
 //---------------------------------------------------------------------------
@@ -72,8 +72,10 @@ class Boiler : public DeviceControl {
       ControlUntilTime = millis() + ControlUntilTime * 60000 * inHours;
       ControlOn = true;
       CurrentMode = false;
-      pinMode(pin, OUTPUT);
-      digitalWrite(pin, HIGH); // выключено (HIGH)
+      if (pin > 0) {
+        pinMode(pin, OUTPUT);
+        digitalWrite(pin, HIGH); // выключено (HIGH)
+      }
       if (pin2 > 0) { // для работы с котлом
         pinMode(pin2, OUTPUT);
         digitalWrite(pin2, LOW); // включено (отключаем штатный термостат)
@@ -88,8 +90,10 @@ class Boiler : public DeviceControl {
         }
         ControlOn = false;
         putInfoLastTime = 0;
-        digitalWrite(pin, HIGH);
-        pinMode(pin, INPUT);
+        if (pin > 0) {
+          digitalWrite(pin, HIGH);
+          pinMode(pin, INPUT);
+        }
         if (pin2 > 0) {
           digitalWrite(pin2, HIGH);
           pinMode(pin2, INPUT);
@@ -101,14 +105,18 @@ class Boiler : public DeviceControl {
         if ( currTemp < TargetTemp     // если насос (не задан датчик температуры то здесь всегда ТРУЕ)
              && !CurrentMode) {  // если текущая температура ниже заданной и нагрев выключен - включить
           CurrentMode = true;
-          digitalWrite(pin, LOW);
+          if (pin > 0) {
+            digitalWrite(pin, LOW);
+          }
           activeWorkCount++;
           tmpWorkTime = millis();
         }
         else {
           if ((currTemp - delta) > TargetTemp && CurrentMode) { // если текущая температура выше заданной и нагрев включен - выключить
             CurrentMode = false;
-            digitalWrite(pin, HIGH);
+            if (pin > 0) {
+              digitalWrite(pin, HIGH);
+            }
             activeWorkTime += millis() - tmpWorkTime;
           }
         }

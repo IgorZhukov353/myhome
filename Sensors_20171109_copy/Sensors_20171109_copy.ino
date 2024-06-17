@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  14-06-2024	-++
+  Last changed:  17-06-2024	-++
 */
-#define VERSION "Ver 1.152 of 14-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.153 of 17-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -208,7 +208,7 @@ class Boiler
   heating_cable(27, "hc", 4),
   vegetableStorage(31, "hvs", 7, 0, 5),
   fill_tank(VALVE_ON_PIN, "fill_tank"),
-  open_tap(VALVE_OR_WATERTAP_PIN, "open_tap");
+  open_tap(0, "open_tap");
 
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,
@@ -487,25 +487,25 @@ void responseProcessing(String response) {
         vegetableStorage.init(response, ind2);
       } else
 
-        if (cmd == "fill_tank" && !open_tap.ControlOn) {  // izh 13-06-2024
-        pinMode(DC_12V_ON_PIN, OUTPUT);         // все в исходное состояние
-        digitalWrite(DC_12V_ON_PIN, HIGH); 
+        if (cmd == "fill_tank" && !open_tap.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
+        pinMode(DC_12V_ON_PIN, OUTPUT);         //
+        digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);        // выбираем питание для клапана (1)
         pinMode(VALVE_ON_PIN, OUTPUT);
-        digitalWrite(VALVE_ON_PIN, HIGH);
+        digitalWrite(VALVE_ON_PIN, HIGH);                 // пока выключаем питание клапана
         //trace("1 response=" + response.substring(ind2, response.length()));
         fill_tank.init(response, ind2, 1);
-        digitalWrite(DC_12V_ON_PIN, LOW); // включить питание 12В
         check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
       } else 
-        if (cmd == "open_tap" && !fill_tank.ControlOn) {
-        pinMode(DC_12V_ON_PIN, OUTPUT);         // все в исходное состояние
-        digitalWrite(DC_12V_ON_PIN, HIGH);
+      
+        if (cmd == "open_tap" && !fill_tank.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
+        pinMode(DC_12V_ON_PIN, OUTPUT);         
+        digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);        // пока выбираем питание для клапана (1) (выключаем питание крана)
         pinMode(WATERTAP_ON_PIN, OUTPUT);
-        digitalWrite(WATERTAP_ON_PIN, HIGH);
+        digitalWrite(WATERTAP_ON_PIN, HIGH);              // пока ставим в положение закрыто (+12В-12В)
         open_tap.init(response, ind2, 1);
         check_open_tap.timeout = 10000; // сделать вызов процедуры обработки раз в 10 сек
 
@@ -584,6 +584,82 @@ void responseProcessing(String response) {
         } else if (ParamName == "open_tap_time") {
           open_tap_time = ParamValue.toInt();
         }
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------
+void fill_tank_check()  // запускается один раз в 2 сек, когда работает команда
+{
+  if (fill_tank.ControlOn) {
+    if(millis() - fill_tank.putInfoLastTime > 60000){
+      trace("fill_tank_check level=" + String(d.a[8].value));
+    }
+    fill_tank.processing();
+    if (fill_tank.ControlOn == 0) { // закончили работу
+        check_fill_tank.timeout = 60000;
+          // все в исходное состояние
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
+        digitalWrite(VALVE_ON_PIN, HIGH);
+        digitalWrite(DC_12V_ON_PIN, HIGH);
+        pinMode(DC_12V_ON_PIN, INPUT);
+        pinMode(VALVE_ON_PIN, INPUT);
+        pinMode(WATERTAP_ON_PIN, INPUT);
+
+    } else {  // в работе
+      if (d.a[8].value == 0) {  // бак полон
+        responseProcessing("command=fill_tank_stop;");
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------
+void open_tap_check()  // запускается один раз в 20 сек, когда работает команда
+{
+  if (open_tap.ControlOn) {
+    bool saved = open_tap.CurrentMode;  // текущий режим, если == false, значит начало работы
+    if(millis() - open_tap.putInfoLastTime > 60000){
+      trace("open_tap=3 mode="+ String(open_tap.pin2));
+    }
+    open_tap.processing();
+    if (open_tap.ControlOn == 0) {      // конец полива
+      if (open_tap.pin2 == -1 || open_tap.pin2 == -2) {        // кран еще не закрыт, нужно закрыть
+        trace("open_tap=4 mode="+ String(open_tap.pin2));
+        digitalWrite(DC_12V_ON_PIN, LOW);         // подаем питание 12В на реле и кран/клапан
+        digitalWrite(WATERTAP_ON_PIN, HIGH);      // меняем полярность на закрытие крана
+        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW); // переключаем питание с клапана на кран
+        
+        open_tap.ControlOn = true;    // включаем команду
+        open_tap.CurrentMode = true; // возвращаем команду в активный режем
+        open_tap.ControlUntilTime = millis() + 20000;  // продляем еще работу на 20 сек чтобы кран успел закрыться
+        open_tap.pin2 = 0;  // теперь точно конец работы команды
+      } else {  // теперь точно все
+        trace("open_tap=5");
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // выключаем реле переключаем питание с крана на клапан
+        digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности 
+        digitalWrite(DC_12V_ON_PIN, HIGH);          // выключаем реле подачи питание 12В на реле и кран/клапан
+
+        pinMode(DC_12V_ON_PIN, INPUT);
+        pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
+        pinMode(WATERTAP_ON_PIN, INPUT);
+        check_open_tap.timeout = 60000;
+        
+        }
+    } else {
+      if (!saved && open_tap.CurrentMode) {  // начало работы полива, первый проход
+        trace("open_tap=1");
+        digitalWrite(WATERTAP_ON_PIN, LOW);         // переключаем полярность на открывание крана (-12В+12В)
+        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);   // переключаем питание с клапана на кран
+        open_tap.pin2 = -1;                         // кран открывается 5-10 секунд, после этого питание крана и реле можно отключить до момента закрытия крана после полива, выставляем признак на снятие питания
+      }
+      else if (open_tap.pin2 == -1){
+        trace("open_tap=2");
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // кран наверное уже открылся, переключаем питание с крана на клапан
+        digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности 
+        digitalWrite(DC_12V_ON_PIN, HIGH);          // отключаем питание 12В
+        open_tap.pin2 = -2;                         // признак закрытия крана по окончанию полива
       }
     }
   }
@@ -677,61 +753,6 @@ void checkPump_check()  // запускается один раз в час
   }
 }
 
-//------------------------------------------------------------------------
-void fill_tank_check()  // запускается один раз в сек, когда работает команда
-{
-  if (fill_tank.ControlOn) {
-    trace('fill_tank_check =' + String(d.a[8].value));
-    fill_tank.processing();
-    if (fill_tank.ControlOn == 0) { // закончили работу
-      check_fill_tank.timeout = 60000;
-        digitalWrite(DC_12V_ON_PIN, HIGH);  // все в исходное состояние
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
-        digitalWrite(VALVE_ON_PIN, HIGH);
-        pinMode(DC_12V_ON_PIN, INPUT);
-        pinMode(VALVE_ON_PIN, INPUT);
-        pinMode(WATERTAP_ON_PIN, INPUT);
-
-    } else {  // в работе
-      if (d.a[8].value == 0) {  // бак полон
-        responseProcessing("command=fill_tank_stop;");
-      }
-    }
-  }
-}
-
-//------------------------------------------------------------------------
-void open_tap_check()  // запускается один раз в 10 сек, когда работает команда
-{
-  if (open_tap.ControlOn) {
-    bool saved = open_tap.CurrentMode; // текущий режим, если == false, значит начало работы
-    open_tap.processing();
-    if (open_tap.ControlOn == 0) {  // конец работы, VALVE_OR_WATERTAP_PIN-> HIGH питание переключилось с крана на клапан
-      digitalWrite(DC_12V_ON_PIN, HIGH);  // отключаем питание 12В
-      digitalWrite(WATERTAP_ON_PIN, HIGH);  // переключаем полярность на закрывание крана
-      if (open_tap.pin2 == -1) {            // кран нужно закрыть
-        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);  // переключаем питание с клапана на кран
-        digitalWrite(DC_12V_ON_PIN, LOW);  // подаем питание
-        open_tap.ControlOn = true;    // включаем команду
-        open_tap.CurrentMode = true; // возвращаем команду в активный режем
-        open_tap.ControlUntilTime = millis() + 20000;  // продляем еще работу на 20 сек чтобы кран успел закрыться
-        open_tap.pin2 = 0;  // теперь точно конец работы команды
-      } else {
-        pinMode(DC_12V_ON_PIN, INPUT);
-        pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
-        pinMode(WATERTAP_ON_PIN, INPUT);
-
-        }
-    } else {
-      if (!saved && open_tap.CurrentMode) {  // начало работы, первый проход, VALVE_OR_WATERTAP_PIN-> LOW переключаем питание с клапана на кран
-        digitalWrite(DC_12V_ON_PIN, HIGH);
-        digitalWrite(WATERTAP_ON_PIN, LOW);  // переключаем полярность на открывание крана
-        digitalWrite(DC_12V_ON_PIN, LOW);    // подаем питание
-        open_tap.pin2 = -1;                  // выставляем признак на закрытие крана
-      }
-    }
-  }
-}
 //------------------------------------------------------------------------
 void esp_power_switch(bool p) {
   //return;
