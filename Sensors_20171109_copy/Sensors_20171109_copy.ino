@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  17-06-2024	-++
+  Last changed:  18-06-2024	-++
 */
-#define VERSION "Ver 1.153 of 17-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.154 of 18-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -52,7 +52,7 @@
 #define PIN22 22  // Реле преключение шлейфа термостат котла линия № 1
 #define PIN23 23  // Реле преключение шлейфа термостат котла линия № 2
 #define PIN24 24  // Реле INT1 - перезагрузка роутера
-#define PIN25 25  // Реле INT2 - Выключение MINI-PC и CAM22 (раньше было -вентиляторы вытяжки в подполе)
+#define PIN25 25  // Реле INT2 - Включение 12V на полив (раньше было - Выключение MINI-PC и CAM22 (раньше было -вентиляторы вытяжки в подполе))
 #define PIN26 26  // Питание насоса в дренажном колодце (INT1 реле в ванной)
 #define PIN27 27  // Питание греющего кабеля в дренажном колодце & септике (INT2 реле в ванной)
 #define PIN28 28  // Датчик уровня в дренажном колодце
@@ -494,7 +494,6 @@ void responseProcessing(String response) {
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);        // выбираем питание для клапана (1)
         pinMode(VALVE_ON_PIN, OUTPUT);
         digitalWrite(VALVE_ON_PIN, HIGH);                 // пока выключаем питание клапана
-        //trace("1 response=" + response.substring(ind2, response.length()));
         fill_tank.init(response, ind2, 1);
         check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
       } else 
@@ -599,14 +598,12 @@ void fill_tank_check()  // запускается один раз в 2 сек, �
     fill_tank.processing();
     if (fill_tank.ControlOn == 0) { // закончили работу
         check_fill_tank.timeout = 60000;
-          // все в исходное состояние
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);
-        digitalWrite(VALVE_ON_PIN, HIGH);
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // все в исходное состояние
+        //digitalWrite(VALVE_ON_PIN, HIGH);
         digitalWrite(DC_12V_ON_PIN, HIGH);
+        pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
+        //pinMode(VALVE_ON_PIN, INPUT);
         pinMode(DC_12V_ON_PIN, INPUT);
-        pinMode(VALVE_ON_PIN, INPUT);
-        pinMode(WATERTAP_ON_PIN, INPUT);
-
     } else {  // в работе
       if (d.a[8].value == 0) {  // бак полон
         responseProcessing("command=fill_tank_stop;");
@@ -681,6 +678,7 @@ void remoteRebootExecute(int act) {
   trace("Rebooted.");
 }
 
+//------------------------------------------------------------------------
 // проверка напряжения на аккумуляторе
 void checkAccumDC() {
 
@@ -749,6 +747,8 @@ void checkPump_check()  // запускается один раз в час
   //esp.addEvent2Buffer(12, "hour=" + String(now.hour()));
   if (now.hour() == 0) {
     esp.send2site("get_date.php");  // в 00 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
+  }
+  if (now.hour() == 1) {
     get_param();                    // прочитать параметры
   }
 }
