@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  21-11-2023
+ Last changed:  20-06-2024
 */
 
 #include "Arduino.h"
@@ -78,19 +78,17 @@ bool ESP_WIFI::_send2site(String reqStr, String postBuf)
   for(short i=0; i<3; i++){
       r = espSendCommand( cmd1 , ok_str , 15000 );  // установить соединение с хостом (3 попытки)
       if(!r){
-/*        if(dnsFail and !r2){
-           closeConnect(); 
-           checkInitialized();
-           dnsFail = 0;
-           r2++;
-          }
-*/          
         delay(1000);
         continue;
       }
       r = espSendCommand( cmd2 , ok_str , 5000 );             // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
       r = espSendCommand( request , (char*)"CLOSED" , 15000 );  // отослать запрос и получить ответ
+      if(!r){
+        delay(1000);
+        continue;
+      }
+      
       //espSendCommand("AT+CIPCLOSE", ok_str , 5000 );
       break;
   }
@@ -158,7 +156,8 @@ unsigned long tnow, tstart;
 tnow = tstart = millis();
 String response;
 response.reserve(255);
-char c, cbuffer[11];
+#define BUF_SIZE 11
+char c, cbuffer[BUF_SIZE];
 short len = strlen(goodResponse);
 if( len > sizeof(cbuffer) - 1)
   len = sizeof(cbuffer) - 1;
@@ -178,19 +177,29 @@ while( true ) {
   c = ESP_Serial.read();
   if( c >= 0 ) {
     response += String(c);
-    for(short i=0; i<sizeof(cbuffer)-1; i++)
-      cbuffer[i] = cbuffer[i+1];
+    //for(short i=0; i<sizeof(cbuffer)-1; i++)
+      //cbuffer[i] = cbuffer[i+1];
+      
+    memmove(cbuffer,cbuffer + 1, BUF_SIZE - 2);  
     cbuffer[sizeof(cbuffer) - 2] = c;
 
     if(!memcmp(cbuffer + ((sizeof(cbuffer) - 1) - len),goodResponse,len)){
       trace("espSendCommand: SUCCESS - Response time: " + String(millis() - tstart) + "ms.");
+      bool res = false;
       while(ESP_Serial.available()){
           c = ESP_Serial.read();
           response += String(c);
+          
+          memmove(cbuffer,cbuffer + 1, BUF_SIZE - 2);
+          cbuffer[BUF_SIZE - 2] = c;
+          if(!memcmp(cbuffer + ((sizeof(cbuffer) - 1) - 7)," 200 OK",7)){
+            res = true;
+          }
         }
       trace("RESPONSE: " + response + "\n\r---END RESPONSE---");
-      responseProcessing(response);
-      return true;
+      if( res)
+        responseProcessing(response);
+      return res;
       }
     else
       if(!memcmp(cbuffer + 5,"ERROR",5)){
@@ -200,12 +209,6 @@ while( true ) {
             response += String(c);
           }
         trace("RESPONSE: " + response + "\n\r---END RESPONSE---");
-        
-        if(response.startsWith("DNS Fail")){ // izh 2-06-2020 обработка ошибки DNS 
-          dnsFailCounter++;
-          dnsFail = 1;
-        }
-        //responseProcessing("error=" + response + ";");
         return false;
       }  
     }
