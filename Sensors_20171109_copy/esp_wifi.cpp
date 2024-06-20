@@ -157,7 +157,7 @@ tnow = tstart = millis();
 String response;
 response.reserve(255);
 #define BUF_SIZE 11
-char c, cbuffer[BUF_SIZE];
+char c, cbuffer[BUF_SIZE] = {'*','*','*','*','*','*','*','*','*','*'};
 short len = strlen(goodResponse);
 if( len > sizeof(cbuffer) - 1)
   len = sizeof(cbuffer) - 1;
@@ -185,13 +185,15 @@ while( true ) {
 
     if(!memcmp(cbuffer + ((sizeof(cbuffer) - 1) - len),goodResponse,len)){
       trace("espSendCommand: SUCCESS - Response time: " + String(millis() - tstart) + "ms.");
-      bool res = true, http = false;
+      short res = true;
+      short http;
       while(ESP_Serial.available()){
           c = ESP_Serial.read();
           response += String(c);
-          
+/*          
           memmove(cbuffer,cbuffer + 1, BUF_SIZE - 2);
           cbuffer[BUF_SIZE - 2] = c;
+          //trace("cbuffer={" + String(cbuffer) + "}");
           if(!memcmp(cbuffer + ((sizeof(cbuffer) - 1) - 7),":HTTP/1",7)){
             http = true;
             res = false;
@@ -199,8 +201,14 @@ while( true ) {
           if(http && !memcmp(cbuffer + ((sizeof(cbuffer) - 1) - 7)," 200 OK",7)){
             res = true;
           }
+*/          
         }
-      trace("RESPONSE: " + response + "\n\r---END RESPONSE---");
+      http = response.indexOf(":HTTP/1");
+      if(http>0){
+        res = response.substring(http).indexOf("200 OK");
+        res = (res>0)?1:0;
+      }
+      trace("http=" + String(http) + " res=" + String(res) + " RESPONSE: " + response + "\n\r---END RESPONSE---");
       if( res)
         responseProcessing(response);
       return res;
