@@ -142,7 +142,7 @@ struct DATA {
       { 6, 0, 0, LOW, ALARM_OFF, PIN9, 0, false, false, false },  //pir3 кухня
       { 7, 0, 0, LOW, ALARM_ON, PIN28, 0, false, true, true },    //уровень в дрен колодце
       { 8, 0, 0, LOW, ALARM_ON, PIN35, 0, false, false, false },  //pir4 площадка 2 этаж
-      { 9, 1, 1, HIGH, ALARM_ON, PIN39, 0, false, true, true },   //уровень в бочке полива
+      { 9, 1, 1, HIGH, ALARM_ON, PIN42, 0, false, true, true },   //уровень в бочке полива
     };
   };
 } d;
@@ -195,7 +195,7 @@ Activity check_open_tap((60000), open_tap_check);
 
 #define DC_12V_ON_PIN 25
 #define VALVE_ON_PIN 38           //(TEMP_PIN+1)
-#define LEVEL_PIN 39              //(TEMP_PIN+2)
+#define LEVEL_PIN 42              //(TEMP_PIN+2)
 #define VALVE_OR_WATERTAP_PIN 40  //PIN (TEMP_PIN+3)
 #define WATERTAP_ON_PIN 41        //(TEMP_PIN+4)
 
@@ -506,7 +506,7 @@ void responseProcessing(String response) {
         pinMode(WATERTAP_ON_PIN, OUTPUT);
         digitalWrite(WATERTAP_ON_PIN, HIGH);              // пока ставим в положение закрыто (+12В-12В)
         open_tap.init(response, ind2, 1);
-        check_open_tap.timeout = 10000; // сделать вызов процедуры обработки раз в 10 сек
+        check_open_tap.timeout = 20000; // сделать вызов процедуры обработки раз в 20 cек
 
       } else if (cmd == "fill_tank_stop") {
         if (fill_tank.ControlOn)
