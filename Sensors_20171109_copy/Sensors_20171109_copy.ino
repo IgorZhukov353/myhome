@@ -506,7 +506,7 @@ void responseProcessing(String response) {
         pinMode(WATERTAP_ON_PIN, OUTPUT);
         digitalWrite(WATERTAP_ON_PIN, HIGH);              // пока ставим в положение закрыто (+12В-12В)
         open_tap.init(response, ind2, 1);
-        check_open_tap.timeout = 20000; // сделать вызов процедуры обработки раз в 20 cек
+        check_open_tap.timeout = 10000; // сделать вызов процедуры обработки раз в 10 сек
 
       } else if (cmd == "fill_tank_stop") {
         if (fill_tank.ControlOn)
