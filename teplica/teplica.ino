@@ -4,12 +4,13 @@
 #define DC_12V_ON_PIN 25
 #define TEMP_PIN 37
 #define VALVE_ON_PIN 38 //(TEMP_PIN+1)
-#define LEVEL_PIN 39 //(TEMP_PIN+2)
+#define LEVEL_PIN 42 //39 //(TEMP_PIN+2)
 #define VALVE_WATER_PIN 40 //PIN (TEMP_PIN+3)
 #define WATER_ON_PIN 41 //(TEMP_PIN+4)
+#define WATER_ON_PIN1 42
 
 OneWire oneWire(TEMP_PIN);  //
-byte level=1;
+byte level=1, savelevel =1;
 byte mode=0;
 
 // Pass our oneWire reference to Dallas Temperature.
@@ -34,6 +35,11 @@ void loop() {
   Serial.println("Какой датчик вы хотели бы прочитать? ");
   while (Serial.available() == 0) {
     level = digitalRead(LEVEL_PIN);
+    if(level != savelevel){
+      savelevel = level;
+      level = digitalRead(LEVEL_PIN);
+      Serial.println("level="+String(level));
+    }
     if(mode==2 && level == 0){
       Serial.println("Емкость заполнена.");
       menu = 3;
@@ -78,12 +84,15 @@ void loop() {
     case 4:
       //
       Serial.println("Кран открыт.");
+      pinMode(VALVE_WATER_PIN, OUTPUT);
       digitalWrite(VALVE_WATER_PIN, HIGH);
       pinMode(VALVE_WATER_PIN, INPUT);
       
       pinMode(WATER_ON_PIN, OUTPUT);
       digitalWrite(WATER_ON_PIN, LOW);
-
+      pinMode(WATER_ON_PIN1, OUTPUT);
+      digitalWrite(WATER_ON_PIN1, LOW);
+      
       pinMode(VALVE_WATER_PIN, OUTPUT);
       digitalWrite(VALVE_WATER_PIN, LOW);
   
@@ -92,12 +101,16 @@ void loop() {
     case 5:
       //
       Serial.println("Кран закрыт.");
+       pinMode(VALVE_WATER_PIN, OUTPUT);
       digitalWrite(VALVE_WATER_PIN, HIGH);
       pinMode(VALVE_WATER_PIN, INPUT);
-      
+
+      pinMode(WATER_ON_PIN, OUTPUT);
       digitalWrite(WATER_ON_PIN, HIGH);
       pinMode(WATER_ON_PIN, INPUT);
-      
+       pinMode(WATER_ON_PIN1, OUTPUT);
+      digitalWrite(WATER_ON_PIN1, HIGH);
+      pinMode(WATER_ON_PIN1, INPUT);
       pinMode(VALVE_WATER_PIN, OUTPUT);
       digitalWrite(VALVE_WATER_PIN, LOW);
   
