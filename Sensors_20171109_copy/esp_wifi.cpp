@@ -185,14 +185,18 @@ while( true ) {
 
     if(!memcmp(cbuffer + ((sizeof(cbuffer) - 1) - len),goodResponse,len)){
       trace("espSendCommand: SUCCESS - Response time: " + String(millis() - tstart) + "ms.");
-      bool res = false;
+      bool res = true, http = false;
       while(ESP_Serial.available()){
           c = ESP_Serial.read();
           response += String(c);
           
           memmove(cbuffer,cbuffer + 1, BUF_SIZE - 2);
           cbuffer[BUF_SIZE - 2] = c;
-          if(!memcmp(cbuffer + ((sizeof(cbuffer) - 1) - 7)," 200 OK",7)){
+          if(!memcmp(cbuffer + ((sizeof(cbuffer) - 1) - 7),":HTTP/1",7)){
+            http = true;
+            res = false;
+          }
+          if(http && !memcmp(cbuffer + ((sizeof(cbuffer) - 1) - 7)," 200 OK",7)){
             res = true;
           }
         }
