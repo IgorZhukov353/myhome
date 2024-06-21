@@ -24,14 +24,14 @@ class ESP_WIFI {
 
   ESP_WIFI();
   bool espSerialSetup();
-  bool espSendCommand(String cmd, char* goodResponse, unsigned long timeout);
-  bool send2site(String reqStr);
-  bool _send2site(String reqStr, String postBuf);
+  bool espSendCommand(const String& cmd, char* goodResponse, unsigned long timeout);
+  bool send2site(const String& reqStr);
+  bool _send2site(const String& reqStr, const String& postBuf);
 
-  void addEvent2Buffer(short id, String msgText);
+  void addEvent2Buffer(short id, const String& msgText);
   void addTempHum2Buffer(short id, short temp, short hum);
   void addSens2Buffer(short id, short val);
-  void addInfo2Buffer(String str);
+  void addInfo2Buffer(const String& str);
   void sendBuffer2Site(); 
 
   void checkIdle(); // отключение в случае простоя

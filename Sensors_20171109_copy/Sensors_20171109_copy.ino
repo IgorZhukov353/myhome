@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  20-06-2024	-++
+  Last changed:  21-06-2024	-++
 */
-#define VERSION "Ver 1.155 of 20-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.156 of 21-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -174,7 +174,7 @@ void remoteTermostat_check();
 void sendError_check();
 void sendBuffer2Site_check();
 void checkPump_check();
-void trace(String msg);
+void trace(const String& msg);
 float readDallasTemp(DallasTemperature *d);
 void remoteRebootExecute(int act);
 float getTemp(short tempSensorId);
@@ -246,7 +246,7 @@ void sens_setup() {
     }
     d.a[i].pre_value = d.a[i].norm_state;
     d.a[i].value = d.a[i].norm_state;
-    trace("Sens init! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value) + " v2=" + String(d.a[i].pre_value));
+    trace(String(F("Sens init! id=")) + String(d.a[i].id) + " v=" + String(d.tmp_value) + " v2=" + String(d.a[i].pre_value));
   }
 
   //pinMode(5, INPUT);
@@ -263,7 +263,7 @@ void sens_check() {
       d.tmp_value = digitalRead(d.a[i].pin);
     else {
       d.tmp_value = analogRead(d.a[i].pin);
-      trace("Analog Sens check! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value));
+      trace(String(F("Analog Sens check! id=")) + String(d.a[i].id) + " v=" + String(d.tmp_value));
       if (d.tmp_value > 10)
         d.tmp_value = 1;
       else
@@ -281,7 +281,7 @@ void sens_check() {
       d.a[i].value = d.a[i].pre_value;
       d.a[i].change_time = 0;
       esp.addSens2Buffer(d.a[i].id, d.a[i].value);
-      trace("Sens changed! id=" + String(d.a[i].id) + " v=" + String(d.a[i].value));
+      trace(String(F("Sens changed! id=")) + String(d.a[i].id) + " v=" + String(d.a[i].value));
 
       if (d.a[i].id == 5) { /* izh 28-10-2018 */
         powerAC_off = !d.a[i].value;
@@ -317,13 +317,13 @@ void sens_check() {
 short Thermister(byte analogPin) {
   double Temp;
   int RawADC = analogRead(analogPin);
-  trace("Thermister.AnalogRead=" + String(RawADC));
+  trace(String(F("Thermister.AnalogRead=")) + String(RawADC));
 
   Temp = log(((10240000 / RawADC) - 10000));
   Temp = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * Temp * Temp)) * Temp);
   Temp = Temp - 273.15;  // Kelvin to Celcius
   short t = round(Temp);
-  trace("Thermister.T=" + String(t) + " " + String(Temp));
+  trace(String(F("Thermister.T=")) + String(t) + " " + String(Temp));
   return t;
 }
 //------------------------------------------------------------------------
@@ -360,7 +360,7 @@ void temp_check() {
     if (i < 3) {
       h = round(dht[i].readHumidity());
       if (dht[i].state == false) {
-        trace("Ошибка чтения температуры для id=" + String(i + 1) + "!");
+        trace(String(F("Ошибка чтения температуры для id=")) + String(i + 1) + "!");
         continue;
       }
       t = round(dht[i].readTemperature());
@@ -369,7 +369,7 @@ void temp_check() {
       int ind = i - 3;
       t = round(readDallasTemp(&dallasTemp[ind]));
     }
-    trace("Темп и влажн. id=" + String(i + 1) + " t=" + String(t) + " h=" + String(h));
+    trace(String(F("Темп и влажн. id=")) + String(i + 1) + " t=" + String(t) + " h=" + String(h));
 
     if (h != prevHum[i] || t != prevTemp[i]) {
       esp.addTempHum2Buffer(i + 1, t, h);
@@ -381,7 +381,7 @@ void temp_check() {
 
 //------------------------------------------------------------------------
 void command_check() {
-  esp.send2site("get_command.php");  // проверка наличия команд
+  esp.send2site(F("get_command.php"));  // проверка наличия команд
 }
 
 //------------------------------------------------------------------------
@@ -398,7 +398,7 @@ void timerInterrupt() {
 }
 
 //------------------------------------------------------------------------
-void trace(String msg) {
+void trace(const String& msg) {
 #ifdef TRACE
   if (!traceInit) {
     traceInit = true;
@@ -440,9 +440,9 @@ void trace(String msg) {
 //------------------------------------------------------------------------
 // Обработка принятой строки
 //------------------------------------------------------------------------
-void responseProcessing(String response) {
+void responseProcessing(const String& response) {
   String str;
-  short ind = response.indexOf("command=");  // признак команды
+  short ind = response.indexOf(F("command="));  // признак команды
   short ind2;
 
   if (ind >= 0) {
@@ -450,44 +450,44 @@ void responseProcessing(String response) {
     ind2 = response.indexOf(";", ind);  // поиск первой точки-запятой
     if (ind2 >= 0) {
       String cmd = response.substring(ind, ind2);
-      str = "cmd=" + cmd; //+ " response=" + response;
+      str = String(F("cmd=")) + cmd; 
       trace(str);
       esp.addEvent2Buffer(7, str);
 
-      if (cmd == "reboot_router")
+      if (cmd == F("reboot_router"))
         remoteRebootExecute(1);
-      else if (cmd == "reboot")
+      else if (cmd == F("reboot"))
         remoteRebootExecute(2);
-      else if (cmd == "sensor_ignore") {
+      else if (cmd == F("sensor_ignore")){
         d.sysState = 0;
         d.ledState = 0;
         digitalWrite(state_led_pin, d.ledState);
-      } else if (cmd == "sensor_check") {
+      } else if (cmd == F("sensor_check")) {
         d.sysState = 1;
-      } else if (cmd == "boiler_stop") {
+      } else if (cmd == F("boiler_stop")) {
         if (boiler.ControlOn)
           boiler.ControlUntilTime = 0;
-      } else if (cmd == "heating_cable_stop") {
+      } else if (cmd == F("heating_cable_stop")) {
         if (heating_cable.ControlOn)
           heating_cable.ControlUntilTime = 0;
-      } else if (cmd == "heating_vegetable_storage_stop") {
+      } else if (cmd == F("heating_vegetable_storage_stop")) {
         if (vegetableStorage.ControlOn)
           vegetableStorage.ControlUntilTime = 0;
-      } else if (cmd == "pump_stop") {
+      } else if (cmd == F("pump_stop")) {
         if (pump.ControlOn)
           pump.ControlUntilTime = 0;
 
-      } else if (cmd == "pump") {
+      } else if (cmd == F("pump")) {
         pump.init(response, ind2);
-      } else if (cmd == "boiler") {
+      } else if (cmd == F("boiler")) {
         boiler.init(response, ind2);
-      } else if (cmd == "heating_cable") {
+      } else if (cmd == F("heating_cable")) {
         heating_cable.init(response, ind2);
-      } else if (cmd == "heating_vegetable_storage") {
+      } else if (cmd == F("heating_vegetable_storage")) {
         vegetableStorage.init(response, ind2);
       } else
 
-        if (cmd == "fill_tank" && !fill_tank.ControlOn && !open_tap.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
+        if (cmd == F("fill_tank") && !fill_tank.ControlOn && !open_tap.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
         pinMode(DC_12V_ON_PIN, OUTPUT);         //
         digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
@@ -498,7 +498,7 @@ void responseProcessing(String response) {
         check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
       } else 
       
-        if (cmd == "open_tap" && !open_tap.ControlOn && !fill_tank.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
+        if (cmd == F("open_tap") && !open_tap.ControlOn && !fill_tank.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
         pinMode(DC_12V_ON_PIN, OUTPUT);         
         digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
@@ -508,15 +508,15 @@ void responseProcessing(String response) {
         open_tap.init(response, ind2, 1);
         check_open_tap.timeout = 10000; // сделать вызов процедуры обработки раз в 10 сек
 
-      } else if (cmd == "fill_tank_stop") {
+      } else if (cmd == F("fill_tank_stop")) {
         if (fill_tank.ControlOn)
           fill_tank.ControlUntilTime = 0;
-      } else if (cmd == "open_tap_stop") {
+      } else if (cmd == F("open_tap_stop")) {
         if (open_tap.ControlOn)
           open_tap.ControlUntilTime = 0;
       }
 
-      else if (cmd == "setdatetime") {  // izh 19-02-2020 проверка местного времени, если надо корректировка
+      else if (cmd == F("setdatetime")) {  // izh 19-02-2020 проверка местного времени, если надо корректировка
         ind2 += 1;
         ind = response.indexOf(";", ind2);
         String date_str = response.substring(ind2, ind);
@@ -527,20 +527,20 @@ void responseProcessing(String response) {
         DateTime dt1(RTC.now());
         DateTime dt2(date_str.c_str(), time_str.c_str());
 
-        str = "TimeCheckCorr:" + date_str + " " + time_str;
+        str = String(F("TimeCheckCorr:")) + date_str + " " + time_str;
         trace(str);
         esp.addEvent2Buffer(12, str);
 
         if (dt1.year() != dt2.year() || dt1.month() != dt2.month() || dt1.day() != dt2.day() || dt1.hour() != dt2.hour() || dt1.minute() != dt2.minute() || dt1.second() != dt2.second()) {
           RTC.adjust(dt2);
-          esp.addEvent2Buffer(12, "Time update.");
+          esp.addEvent2Buffer(12, F("Time update."));
         }
       }
     }
   } else {                             // izh 29-03-2022 считать параметры
     ind = response.indexOf("param_");  // признак команды
     if (ind >= 0) {
-      trace("Считать параметры.");
+      trace(F("Считать параметры."));
       while (1) {
         ind2 = response.indexOf("=", ind);
         if (ind2 == -1)
@@ -575,12 +575,12 @@ void responseProcessing(String response) {
               break;
           }
           //Serial.println(checked_ip);
-        } else if (ParamName == "param_pump_force") {
+        } else if (ParamName == F("param_pump_force")) {
           pump_force = ParamValue.substring(0, 1).toInt();
           //Serial.println(pump_force);
-        } else if (ParamName == "fill_tank_time") {
+        } else if (ParamName == F("fill_tank_time")) {
           fill_tank_time = ParamValue.toInt();
-        } else if (ParamName == "open_tap_time") {
+        } else if (ParamName == F("open_tap_time")) {
           open_tap_time = ParamValue.toInt();
         }
       }
@@ -593,7 +593,7 @@ void fill_tank_check()  // запускается один раз в 2 сек, �
 {
   if (fill_tank.ControlOn) {
     if(millis() - fill_tank.putInfoLastTime > 60000){
-      trace("fill_tank_check level=" + String(d.a[8].value));
+      trace(String(F("fill_tank_check level=")) + String(d.a[8].value));
     }
     fill_tank.processing();
     if (fill_tank.ControlOn == 0) { // закончили работу
@@ -604,12 +604,12 @@ void fill_tank_check()  // запускается один раз в 2 сек, �
         pinMode(DC_12V_ON_PIN, INPUT);
         fill_tank.pin2 == 0;
     } else {  // в работе
+      if( fill_tank.pin2 == -1) // это не первый всплеск
+        responseProcessing(F("command=fill_tank_stop;"));
       if (d.a[8].value == 0) {  // бак полон
-        if( fill_tank.pin2 == -1) // это не первый всплеск
-          responseProcessing("command=fill_tank_stop;");
-        else
           fill_tank.pin2 == -1; // компенсировать первый всплеск
       }
+      
     }
   }
 }
@@ -635,7 +635,7 @@ void open_tap_check()  // запускается один раз в 20 сек, �
         open_tap.ControlUntilTime = millis() + 20000;  // продляем еще работу на 20 сек чтобы кран успел закрыться
         open_tap.pin2 = 0;  // теперь точно конец работы команды
       } else {  // теперь точно все
-        trace("open_tap=5");
+        trace(F("open_tap=5"));
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // выключаем реле переключаем питание с крана на клапан
         digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности 
         digitalWrite(DC_12V_ON_PIN, HIGH);          // выключаем реле подачи питание 12В на реле и кран/клапан
@@ -648,13 +648,13 @@ void open_tap_check()  // запускается один раз в 20 сек, �
         }
     } else {
       if (!saved && open_tap.CurrentMode) {  // начало работы полива, первый проход
-        trace("open_tap=1");
+        trace(F("open_tap=1"));
         digitalWrite(WATERTAP_ON_PIN, LOW);         // переключаем полярность на открывание крана (-12В+12В)
         digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);   // переключаем питание с клапана на кран
         open_tap.pin2 = -1;                         // кран открывается 5-10 секунд, после этого питание крана и реле можно отключить до момента закрытия крана после полива, выставляем признак на снятие питания
       }
       else if (open_tap.pin2 == -1){
-        trace("open_tap=2");
+        trace(F("open_tap=2"));
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // кран наверное уже открылся, переключаем питание с крана на клапан
         digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности 
         digitalWrite(DC_12V_ON_PIN, HIGH);          // отключаем питание 12В
@@ -668,7 +668,7 @@ void open_tap_check()  // запускается один раз в 20 сек, �
 // удаленная перезагрузка всех устройств
 void remoteRebootExecute(int act) {
   int pin = (act == 1) ? PIN24 : PIN30;  // 24 - роутер; 30 - камеры, регистратор
-  trace("Rebooting...");
+  trace(F("Rebooting..."));
   pinMode(pin, OUTPUT);
 
   digitalWrite(pin, LOW);
@@ -677,7 +677,7 @@ void remoteRebootExecute(int act) {
   digitalWrite(pin, HIGH);
   pinMode(pin, INPUT);
 
-  trace("Rebooted.");
+  trace(F("Rebooted."));
 }
 
 //------------------------------------------------------------------------
@@ -738,17 +738,17 @@ void checkPump_check()  // запускается один раз в час
 {
   DateTime now = RTC.now();
   if (now.hour() == 5 && (d.a[6].value == 1 || pump_force == 1)) {  // в 5 утра если установлен датчик уровня или принудительное включение -> включить насос
-    responseProcessing("command=pump;15;");
+    responseProcessing(F("command=pump;15;"));
   }
   if (fill_tank_time < 24 && now.hour() == fill_tank_time && d.a[8].value == 1) {  // наполнить бочку если не полная
-    responseProcessing("command=fill_tank;30;");
+    responseProcessing(F("command=fill_tank;30;"));
   }
   if (open_tap_time < 24 && now.hour() == open_tap_time) {  // полить в теплице
-    responseProcessing("command=open_tap;120;");
+    responseProcessing(F("command=open_tap;120;"));
   }
   //esp.addEvent2Buffer(12, "hour=" + String(now.hour()));
   if (now.hour() == 0) {
-    esp.send2site("get_date.php");  // в 00 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
+    esp.send2site(F("get_date.php"));  // в 00 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
   }
   if (now.hour() == 1) {
     get_param();                    // прочитать параметры
@@ -770,7 +770,7 @@ void esp_power_switch(bool p) {
 //------------------------------------------------------------------------
 //------------------------------------------------------------------------
 void setup() {
-  trace(VERSION);
+  trace(F(VERSION));
 
   Wire.begin();
   RTC.begin();
@@ -784,7 +784,6 @@ void setup() {
   for (short i = 0; i < MAX_DALLAS_SENS; i++) {
     dallasTemp[i].begin();
   }
-  //temp_check();
 
   esp.check_Wait_Internet();
 
@@ -816,7 +815,9 @@ void loop() {
 
       esp.checkInitialized();
       byte ind;
-      String dopInfo = "";
+      String dopInfo;
+      dopInfo.reserve(255);
+      dopInfo = "";
       for (ind = 0; ind < checked_ip; ind++) {  // пинги видеорегистратора и камер
         if (!esp.espSendCommand("AT+PING=\"192.168.0." + String(tcp_last_byte[ind]) + "\"", (char *)"OK", 5000)) {
           if (dopInfo != "")
@@ -825,8 +826,17 @@ void loop() {
         }
       }
       if (dopInfo != "")
-        dopInfo = "PingErr:" + dopInfo + " ";
-      dopInfo += "Snd=" + String(esp.sendCounter_ForAll) + +" SndKB=" + String(esp.bytesSended / 1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) + " RR=" + String(esp.routerRebootCount) + "(" + String((t - esp.lastRouterReboot) / (60 * 60000)) + "h.)";
+        dopInfo = String(F("PingErr:")) + dopInfo + " ";
+      dopInfo += F("Snd="); 
+      dopInfo += String(esp.sendCounter_ForAll);
+      dopInfo += F(" SndKB=");
+      dopInfo += String(esp.bytesSended / 1024);
+      dopInfo += F(" SErr=");
+      dopInfo += String(esp.sendErrorCounter_ForAll); 
+      dopInfo += F(" RR=");
+      dopInfo += String(esp.routerRebootCount);
+      dopInfo += F("(");
+      dopInfo += String((t - esp.lastRouterReboot) / (60 * 60000)) + "h.)";
 
       const unsigned long ticksPerDay = 86400000;  // 1000 * 60 * 60 * 24;
       const unsigned long ticksPerHour = 3600000;  //1000 * 60 * 60;

@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       21-11-2023
- Last changed:  17-06-2024
+ Last changed:  21-06-2024
 */
 
 //---------------------------------------------------------------------------
@@ -42,9 +42,9 @@ class Boiler : public DeviceControl {
       delta = pdelta;
       TargetTemp = 0;
     };
-    void init(String response, short ind2, short parInHours=0)
+    void init(const String& response, short ind2, short parInHours=0)
     {
-      trace(name + ": init.");
+      trace(name + String(F(": init.")));
       putInfoLastTime = 0;
       //trace("2 response=" + response.substring(ind2, response.length()));
       
@@ -64,7 +64,7 @@ class Boiler : public DeviceControl {
       ind2 = response.indexOf(";", ind);
       ControlUntilTime = response.substring(ind, ind2).toInt();
       if (!ControlUntilTime) {
-        String err = name + ": Error period reading!";
+        String err = name + String(F(": Error period reading!"));
         trace(err);
         esp.addEvent2Buffer(4, err);
         return;
@@ -129,12 +129,22 @@ class Boiler : public DeviceControl {
     void putInfo()
     {
       String str;
+      str.reserve(100);
       //unsigned long ms = activeWorkTime + (CurrentMode)?millis() - tmpWorkTime:0;
-      str = "{\"id\":\"" + name + "\",\"l\":" + String((ControlOn) ? ControlUntilTime - millis() : 0) + ",\"cnt\":" + String(activeWorkCount) +
-            ",\"w\":" + String(ControlOn) + ",\"a\":" + String(CurrentMode) +
-            ",\"actt\":" + String(activeWorkTime + ((CurrentMode) ? millis() - tmpWorkTime : 0)) +
-            ((tempSensorId > 0) ? ",\"t\":" + String(TargetTemp) + ",\"curt\":\"" + String(currTemp) + "\"" : "") +
-            "}";
+      str = F("{\"id\":\"");
+      str += name;
+      str +=  F("\",\"l\":");
+      str +=  String((ControlOn) ? ControlUntilTime - millis() : 0);
+      str +=  F(",\"cnt\":");
+      str +=  String(activeWorkCount);
+      str +=  F(",\"w\":");
+      str +=  String(ControlOn);
+      str +=  F(",\"a\":");
+      str +=  String(CurrentMode);
+      str +=  F(",\"actt\":");
+      str +=  String(activeWorkTime + ((CurrentMode) ? millis() - tmpWorkTime : 0));
+      str +=  ((tempSensorId > 0) ? String(F(",\"t\":")) + String(TargetTemp) + String(F(",\"curt\" : \"")) + String(currTemp) + String(F("\"")) : "");
+      str +=  F("}");
       trace( str);
       esp.addEvent2Buffer(8, str);
     }
