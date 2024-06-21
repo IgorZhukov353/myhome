@@ -269,8 +269,6 @@ void sens_check() {
       else
         d.tmp_value = 0;
     }
-    //trace("Sens check! id=" + String(d.a[i].id) + " v=" + String(d.tmp_value));
-
     if (d.tmp_value != d.a[i].pre_value) {
       d.a[i].pre_value = d.tmp_value;
       d.a[i].change_time = currentMillis;
@@ -604,12 +602,13 @@ void fill_tank_check()  // запускается один раз в 2 сек, �
         pinMode(DC_12V_ON_PIN, INPUT);
         fill_tank.pin2 == 0;
     } else {  // в работе
-      if( fill_tank.pin2 == -1) // это не первый всплеск
-        responseProcessing(F("command=fill_tank_stop;"));
+     
       if (d.a[8].value == 0) {  // бак полон
-          fill_tank.pin2 == -1; // компенсировать первый всплеск
+        if( fill_tank.pin2 == -1) // это не первый всплеск
+          responseProcessing(F("command=fill_tank_stop;"));
+         else
+          fill_tank.pin2 = -1; // компенсировать первый всплеск
       }
-      
     }
   }
 }

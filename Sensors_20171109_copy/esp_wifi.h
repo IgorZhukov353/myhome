@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  24-05-2020
+ Last changed:  21-06-2020
 */
 class ESP_WIFI {
 //protected:  

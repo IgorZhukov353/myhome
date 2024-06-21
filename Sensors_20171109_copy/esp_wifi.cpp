@@ -65,14 +65,33 @@ bool ESP_WIFI::_send2site(const String& reqStr, const String& postBuf)
 			return false;
 		}
 
-  String cmd1 = "AT+CIPSTART=\"TCP\",\"" + String(HOST_IP_STR) +"\",80";
-  String request = (postBuf == "")? 
-    "GET /"  + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\n" :
-    "POST /" + reqStr + " HTTP/1.1\r\nHost: " + String(HOST_STR) + "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: "  + postBuf.length() + "\r\n\r\n" + postBuf + "\r\n";    
-//    "GET /" + reqStr + "?" + postBuf + " HTTP/1.1\r\nHost: " + HOST_STR + "\r\nConnection: close\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n";
+  String cmd1; 
+  cmd1 = F("AT+CIPSTART=\"TCP\",\"");
+  cmd1 += String(HOST_IP_STR);
+  cmd1 += F("\",80");
+  String request;
+  if(postBuf == ""){
+    request = F("GET /");
+    request += reqStr; 
+    request += F(" HTTP/1.1\r\nHost: ");
+    request += String(HOST_STR);
+    request += F("\r\nConnection: close\r\n");
+    }
+  else {
+    request = F("POST /");
+    request += reqStr; 
+    request += F(" HTTP/1.1\r\nHost: ");
+    request += String(HOST_STR);
+    request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
+    request += String(postBuf.length());
+    request += F("\r\n\r\n");
+    request += postBuf;
+    request += F( "\r\n");    
+    }
 
   short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
-  String cmd2 = "AT+CIPSEND=" + String(requestLength);
+  String cmd2 = F("AT+CIPSEND=");
+  cmd2 += String(requestLength);
 
   bool r;
   for(short i=0; i<3; i++){
