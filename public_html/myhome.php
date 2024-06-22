@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>MyHome</title>
+<title>MyHome V1</title>
 <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
 <link rel="stylesheet" href="mystyle.css" type="text/css"/>
 </head>
@@ -12,7 +12,8 @@
 -->
 <div id=demotext style="text-align: center;width: 400px;">Привет, сегодня 
 <?php 
-/* Igor Zhukov (C) 2018-04-13 */
+/* Igor Zhukov (C) 2018-04-13 
+	Last changed: 22-06-2024*/
 date_default_timezone_set("Europe/Moscow");
 $now = new DateTime(date("Y-m-d H:i:s"));
 echo $now->format("d.m.Y H:i:s");
@@ -97,14 +98,25 @@ if(isset($row[5]))
 
 <tbody>
 <?php
-        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y') as Date,Sensor_Name,Count,Last,First,Detail_info FROM V_LAST_SENSOR_ACTIVITY where Date = CURDATE() limit 10");
+        $result = mysqli_query($link, "SELECT DATE_FORMAT(Date,'%d.%m.%Y') as Date,Sensor_Name,Count,Last,First,LastValue,FirstValue FROM V_LAST_SENSOR_ACTIVITY3 where Date = CURDATE() limit 10");
         while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
 ?>
 <tr>
 <!--td style="width: 60px;text-align: center;"><?php echo $row[0] ?></td-->
 <td style="width: 120px;text-align: center;"><?php echo $row[1] ?></td>
 <td style="width: 50px;text-align: center;"><?php echo $row[2] ?></td>
-<td style="width: 80px;text-align: center;"><?php echo $row[3]." / ".$row[4] ?></td>
+<td style="width: 80px;text-align: center;"><?php echo $row[3];
+if($row[5] == 1)
+ 	echo "<span style=\"color:green\">①</span>";
+else
+    echo "<span style=\"color:red\">⓪</span>";
+echo " / ".$row[4];
+if($row[6] == 1)
+ 	echo "<span style=\"color:green\">①</span>";
+else
+    echo "<span style=\"color:red\">⓪</span>";
+
+?></td>
 </tr>
 <?php            }
         mysqli_free_result($result);
