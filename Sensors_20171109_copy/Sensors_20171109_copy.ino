@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  21-06-2024	-++
+  Last changed:  22-06-2024	-++
 */
-#define VERSION "Ver 1.156 of 21-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.157 of 22-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -151,7 +151,6 @@ bool traceInit = false;             // признак инициализации
 bool powerAC_off = false;           // признак отсутствия внешнего напряжения 220В
 float accum_DC_V;                   // напряжение на аккумуляторе БП
 unsigned long powerAC_ON_OFF_Time;  // время отключения внешнего напряжения 220В
-//bool power_MINI_PC_CAM22_off = false;  // признак отключения MINI-PC и CAM22 (они сидят на БП с аккумулятором)
 
 /*--------------------------------------------------------------------------------*/
 bool watchDogOK_Sended2BD = 0;           // признак отправки дежурного пакета в БД
@@ -164,8 +163,9 @@ short checked_ip = 7;
 byte tcp_last_byte[10] = { 9, 22, 18, 26, 28, 29 };  // список пингуемых ip
 byte pump_force;                                     // =1 включить дренажный насос в установленное время независимо от значения датчика уровня
 byte open_tap_time = 18,                             // в это время открыть кран для полива на 120 мин, если >= 24, то не открывать
-  fill_tank_time = 5;                                // в это время открыть клапан для заполнение бочки на 30 мин, если >= 24 или уровень == 0, то не открывать
-
+  fill_tank_time = 5,                                // в это время открыть клапан для заполнение бочки на 30 мин, если >= 24 или уровень == 0, то не открывать
+  ip_ping_reboot = 1;                                // если пинги контролируемых устройств не прошли (1 раз/час), то перегрузить их
+  
 void blinky_check();
 void sens_check();
 void temp_check();
@@ -201,7 +201,6 @@ Activity check_open_tap((60000), open_tap_check);
 
 //--------------------------------------------------------------------------------
 #include "device.h"
-
 class Boiler
   pump(26, "pump"),
   boiler(23, "boiler", 1, 22),
@@ -818,14 +817,17 @@ void loop() {
       dopInfo.reserve(255);
       dopInfo = "";
       for (ind = 0; ind < checked_ip; ind++) {  // пинги видеорегистратора и камер
-        if (!esp.espSendCommand("AT+PING=\"192.168.0." + String(tcp_last_byte[ind]) + "\"", (char *)"OK", 5000)) {
+        if (!esp.espSendCommand(String(F("AT+PING=\"192.168.0.")) + String(tcp_last_byte[ind]) + String(F("\"")), (char *)"OK", 5000)) {
           if (dopInfo != "")
             dopInfo += ",";
           dopInfo += String(tcp_last_byte[ind]);
         }
       }
-      if (dopInfo != "")
+      if (dopInfo != ""){
         dopInfo = String(F("PingErr:")) + dopInfo + " ";
+        if(ip_ping_reboot == 1)
+          responseProcessing(F("command=reboot_router;"));
+      }
       dopInfo += F("Snd="); 
       dopInfo += String(esp.sendCounter_ForAll);
       dopInfo += F(" SndKB=");
@@ -851,7 +853,7 @@ void loop() {
       unsigned int h = ((t % ticksPerDay + timerResetOstatok) % ticksPerDay) / ticksPerHour;
 
       lastWatchDogOK_Sended2BD = (t == 0) ? 1 : t;
-      esp.addEvent2Buffer(3, "T=" + ((d > 0) ? String(d) + "d." : "") + String(h) + "h. (" + dopInfo + ")");
+      esp.addEvent2Buffer(3, String(F("T=")) + ((d > 0) ? String(d) + String(F("d.")) : "") + String(h) + String(F("h. (")) + dopInfo + String(F(")")));
       traceInit = false;
     }
   } else
