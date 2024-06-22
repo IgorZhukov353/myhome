@@ -826,7 +826,7 @@ void loop() {
       if (dopInfo != ""){
         dopInfo = String(F("PingErr:")) + dopInfo + " ";
         if(ip_ping_reboot == 1)
-          responseProcessing(F("command=reboot_router;"));
+          responseProcessing(F("command=reboot;"));
       }
       dopInfo += F("Snd="); 
       dopInfo += String(esp.sendCounter_ForAll);
