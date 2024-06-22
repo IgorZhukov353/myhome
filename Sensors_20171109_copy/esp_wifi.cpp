@@ -40,14 +40,12 @@ const char *HOST_IP_STR = "81.90.182.128";
 const char *ok_str = (char*)"OK";
 
 #define ESP_Serial Serial1 // для МЕГИ
-//String curWSSID;
 
 //------------------------------------------------------------------------
 ESP_WIFI::ESP_WIFI()
 {
 wifi_initialized = false;
 sendErrorCounter = 0;
-//curWSSID = WSSID_PROG;
 }
 
 //------------------------------------------------------------------------

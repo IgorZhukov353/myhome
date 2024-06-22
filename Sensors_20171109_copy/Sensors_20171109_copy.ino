@@ -227,7 +227,9 @@ int memoryFree() {
 //------------------------------------------------------------------------
 void get_param() {
   esp.send2site("get_param.php");  // прочитать параметры
-  String str = "Checked_IP=" + String(checked_ip) + "(";
+  String str = F("Checked_IP=");
+  str += String(checked_ip);
+  str +=  F("(");
   for (short i = 0; i < checked_ip; i++) {
     str += String(tcp_last_byte[i]) + ((i == checked_ip - 1) ? ")" : ",");
   }
@@ -320,7 +322,7 @@ short Thermister(byte analogPin) {
   Temp = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * Temp * Temp)) * Temp);
   Temp = Temp - 273.15;  // Kelvin to Celcius
   short t = round(Temp);
-  trace(String(F("Thermister.T=")) + String(t) + " " + String(Temp));
+  //trace(String(F("Thermister.T=")) + String(t) + " " + String(Temp));
   return t;
 }
 //------------------------------------------------------------------------
@@ -826,7 +828,7 @@ void loop() {
       if (dopInfo != ""){
         dopInfo = String(F("PingErr:")) + dopInfo + " ";
         if(ip_ping_reboot == 1)
-          responseProcessing(F("command=reboot;"));
+          responseProcessing(F("command=reboot_router;"));
       }
       dopInfo += F("Snd="); 
       dopInfo += String(esp.sendCounter_ForAll);
