@@ -224,7 +224,7 @@ int checkMemoryFree() {
   else
     freeValue = ((int)&freeValue) - ((int)__brkval);
   if(ramMemory > freeValue)
-    ramMemory > freeValue;
+    ramMemory = freeValue;
   return freeValue;
 }
 //------------------------------------------------------------------------
@@ -836,7 +836,7 @@ void loop() {
           responseProcessing(F("command=reboot_router;"));
       }
       dopInfo += F("M=");
-      dopInfo += String(ramMemory);
+      dopInfo += String(floor((((float)ramMemory/1024))*100)/100);
       dopInfo += F(" Snd="); 
       dopInfo += String(esp.sendCounter_ForAll);
       dopInfo += F(" SndKB=");
