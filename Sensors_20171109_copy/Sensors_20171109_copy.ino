@@ -3,7 +3,7 @@
   Created:       01-11-2017
   Last changed:  22-06-2024	-++
 */
-#define VERSION "Ver 1.157 of 22-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.158 of 23-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -158,6 +158,7 @@ unsigned long lastWatchDogOK_Sended2BD;  // время отправки дежу
 short timerResetCounter;                 // количество сбросов таймера с начала работы (отслеживание перехода через 50 дней)
 short timerResetDays;                    // количество дней до последнего сброса таймера (переходящее количество дней для вычисление общего количества дней)
 unsigned long timerResetOstatok;         // переходящее количество тиков таймера
+short ramMemory = 10000;
 
 short checked_ip = 7;
 byte tcp_last_byte[10] = { 9, 22, 18, 26, 28, 29 };  // список пингуемых ip
@@ -216,12 +217,14 @@ extern int __bss_end;
 extern void *__brkval;
 
 // Функция, возвращающая количество свободного ОЗУ (RAM)
-int memoryFree() {
+int checkMemoryFree() {
   int freeValue;
   if ((int)__brkval == 0)
     freeValue = ((int)&freeValue) - ((int)&__bss_end);
   else
     freeValue = ((int)&freeValue) - ((int)__brkval);
+  if(ramMemory > freeValue)
+    ramMemory > freeValue;
   return freeValue;
 }
 //------------------------------------------------------------------------
@@ -585,6 +588,7 @@ void responseProcessing(const String& response) {
       }
     }
   }
+  checkMemoryFree();
 }
 
 //------------------------------------------------------------------------
@@ -806,6 +810,7 @@ void loop() {
   checkPump.checkActivated();
   check_fill_tank.checkActivated();
   check_open_tap.checkActivated();
+  checkMemoryFree();
 
   unsigned long t = millis();
   if (lastWatchDogOK_Sended2BD == 0         // первая проверка
@@ -814,12 +819,12 @@ void loop() {
       watchDogOK_Sended2BD = true;
 
       esp.checkInitialized();
-      byte ind;
+      short ind;
       String dopInfo;
       dopInfo.reserve(255);
       dopInfo = "";
       for (ind = 0; ind < checked_ip; ind++) {  // пинги видеорегистратора и камер
-        if (!esp.espSendCommand(String(F("AT+PING=\"192.168.0.")) + String(tcp_last_byte[ind]) + String(F("\"")), (char *)"OK", 5000)) {
+        if (!esp.espSendCommand(String(F("AT+PING=\"192.168.0.")) + String(tcp_last_byte[ind]) + String(F("\"")), STATE::OK, 5000)) {
           if (dopInfo != "")
             dopInfo += ",";
           dopInfo += String(tcp_last_byte[ind]);
@@ -830,7 +835,9 @@ void loop() {
         if(ip_ping_reboot == 1)
           responseProcessing(F("command=reboot_router;"));
       }
-      dopInfo += F("Snd="); 
+      dopInfo += F("M=");
+      dopInfo += String(ramMemory);
+      dopInfo += F(" Snd="); 
       dopInfo += String(esp.sendCounter_ForAll);
       dopInfo += F(" SndKB=");
       dopInfo += String(esp.bytesSended / 1024);
@@ -840,7 +847,7 @@ void loop() {
       dopInfo += String(esp.routerRebootCount);
       dopInfo += F("(");
       dopInfo += String((t - esp.lastRouterReboot) / (60 * 60000)) + "h.)";
-
+      
       const unsigned long ticksPerDay = 86400000;  // 1000 * 60 * 60 * 24;
       const unsigned long ticksPerHour = 3600000;  //1000 * 60 * 60;
 
@@ -857,6 +864,7 @@ void loop() {
       lastWatchDogOK_Sended2BD = (t == 0) ? 1 : t;
       esp.addEvent2Buffer(3, String(F("T=")) + ((d > 0) ? String(d) + String(F("d.")) : "") + String(h) + String(F("h. (")) + dopInfo + String(F(")")));
       traceInit = false;
+      ramMemory = 10000;
     }
   } else
     watchDogOK_Sended2BD = false;

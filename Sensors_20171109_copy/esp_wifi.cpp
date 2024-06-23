@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  21-06-2024
+ Last changed:  23-06-2024
 */
 
 #include "Arduino.h"
@@ -12,6 +12,7 @@
 void trace(const String& msg);
 void responseProcessing(const String& resp);
 void esp_power_switch(bool p);
+int checkMemoryFree();
 //--------------------------------------------------
 /* пример POST запроса
 POST /upd/send_info.php HTTP/1.1
@@ -37,7 +38,7 @@ const char *HOST_STR = "igorzhukov353.h1n.ru";
 const char *HOST_IP_STR = "81.90.182.128"; 
 //const char *HOST_IP_STR = "igorzhukov353.h1n.ru";
 
-const char *ok_str = (char*)"OK";
+//const char *OK = OK;
 
 #define ESP_Serial Serial1 // для МЕГИ
 
@@ -54,7 +55,6 @@ bool ESP_WIFI::send2site(const String& reqStr)
 {
   return _send2site(reqStr, "");
 }
-
 //------------------------------------------------------------------------
 // выполнить команду на удаленном сервере (через wi-fi)
 bool ESP_WIFI::_send2site(const String& reqStr, const String& postBuf) 
@@ -68,6 +68,9 @@ bool ESP_WIFI::_send2site(const String& reqStr, const String& postBuf)
   cmd1 += String(HOST_IP_STR);
   cmd1 += F("\",80");
   String request;
+  short maxlen = reqStr.length() + postBuf.length()+ 200;
+  request.reserve(maxlen);
+  
   if(postBuf == ""){
     request = F("GET /");
     request += reqStr; 
@@ -93,20 +96,20 @@ bool ESP_WIFI::_send2site(const String& reqStr, const String& postBuf)
 
   bool r;
   for(short i=0; i<3; i++){
-      r = espSendCommand( cmd1 , ok_str , 15000 );  // установить соединение с хостом (3 попытки)
+      r = espSendCommand( cmd1, STATE::OK , 15000 );  // установить соединение с хостом (3 попытки)
       if(!r){
         delay(1000);
         continue;
       }
-      r = espSendCommand( cmd2 , ok_str , 5000 );             // подготовить отсылку запроса - длина запроса
+      r = espSendCommand( cmd2, STATE::OK , 5000 );             // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
-      r = espSendCommand( request , (char*)"CLOSED" , 15000 );  // отослать запрос и получить ответ
+      r = espSendCommand( request , STATE::CLOSED , 15000 );  // отослать запрос и получить ответ
       if(!r){
         delay(1000);
         continue;
       }
       
-      //espSendCommand("AT+CIPCLOSE", ok_str , 5000 );
+      //espSendCommand("AT+CIPCLOSE"STATE::OK , 5000 );
       break;
   }
   if(!r){
@@ -130,12 +133,12 @@ delay(200);
 
 ESP_Serial.begin(115200); // default baud rate for ESP8266
 delay(100);
-r = espSendCommand(F("ATE0") , ok_str , 5000 );
+r = espSendCommand(F("ATE0"), STATE::OK , 5000 );
 
 delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
-r = espSendCommand( F("AT+CIFSR") , ok_str , 5000 );
-r = espSendCommand( F("AT+CWMODE=1") , ok_str , 5000 );
-r = espSendCommand( String(F("AT+CWJAP=\"")) + WSSID + String(F("\",\"")) + WPASS + String(F("\"")) , ok_str , 20000 );
+r = espSendCommand( F("AT+CIFSR"), STATE::OK , 5000 );
+r = espSendCommand( F("AT+CWMODE=1"), STATE::OK , 5000 );
+r = espSendCommand( String(F("AT+CWJAP=\"")) + WSSID + String(F("\",\"")) + WPASS + String(F("\"")), STATE::OK , 20000 );
 if(!r){
   routerConnectErrorCounter++; 
 }
@@ -144,8 +147,85 @@ else
 return r;
 }
 
+//------------------------------------------------------------------------
+#define BUF_SIZE 10
+#define STATE_STR_MAX 5
+static const char *state_str[STATE_STR_MAX] = {"OK", "ERROR", "HTTP/1.1", "200 OK", "CLOSED"};
+static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6};
+
+bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout)
+{
+  trace(String(F("espSendCommand(\"")) + cmd + String(F("\",")) + String((byte)goodResponse) + "," + String(timeout) + String(F(")")) );
+  ESP_Serial.println(cmd);
+  
+  unsigned long tnow, tstart;
+  bool result;
+  tnow = tstart = millis();
+  String response;
+  if(goodResponse == STATE::CLOSED)
+    response.reserve(512);
+  else
+    response.reserve(100);
+  char c;
+  char cbuffer[BUF_SIZE]; //= {'*','*','*','*','*','*','*','*','*','*'};
+  bool state_str_on[STATE_STR_MAX] = {0, 0, 0, 0, 0};
+  byte recived = 0;
+  while ( tnow <= tstart + timeout ) {
+    c = ESP_Serial.read();
+    if(c > 0) {
+      response += String(c);
+      //Serial.println(String(cbuffer));
+      if (!state_str_on[(byte)STATE::ERR] && !state_str_on[(byte)STATE::CLOSED]) {
+        memmove(cbuffer, cbuffer + 1, sizeof(cbuffer) - 1);
+        cbuffer[sizeof(cbuffer) - 1] = c;
+        for (byte i = 0; i < STATE_STR_MAX; i++) {
+          if ((i == (byte)STATE::HTTP_OK || i == (byte)STATE::CLOSED) && !state_str_on[(byte)STATE::HTTP])
+            continue;
+          if (!memcmp(cbuffer + sizeof(cbuffer) - 1 - state_str_len[i], state_str[i], state_str_len[i])) {
+            state_str_on[i] = true;
+            if(i == (byte)goodResponse || i == (byte)STATE::ERR)
+              recived = true;
+          }
+        }
+      }
+    }
+    if(recived)
+      break;
+    tnow = millis();
+  }
+  //Serial.println(String(state_str_on[0]) + String(state_str_on[1]) + String(state_str_on[2]) + String(state_str_on[3]) + String(state_str_on[4]));
+  
+  while (ESP_Serial.available()) {
+    c = ESP_Serial.read();
+    response += String(c);
+  }
+  String msg = F("espSendCommand:");
+  if ( recived) {
+    result = (state_str_on[(byte)STATE::ERR] || (state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK])) ? false : true;
+    msg += (result) ? F("SUCCESS") : F("ERROR");
+  }
+  else {
+    result = false;
+    msg += F("ERROR - Timeout");
+  }
+  msg += F(" - Response time: " );
+  msg += String(millis() - tstart);
+  msg += F("ms.");
+
+  msg += F("\n\rRESPONSE:");
+  msg += response;
+  msg += F("\n\r---END RESPONSE---");
+  trace(msg);
+
+  if(result)
+    responseProcessing(response);
+    
+  checkMemoryFree();
+  return result;
+}
+
 //---------------------------------------------------------------------
-bool ESP_WIFI::espSendCommand(const String& cmd, char* goodResponse, unsigned long timeout) 
+bool ESP_WIFI::espSendCommand2(const String& cmd, char* goodResponse, unsigned long timeout) 
 {
 trace("espSendCommand( " + cmd + " , " + goodResponse + " , " + String(timeout) + " )" );
 ESP_Serial.println(cmd);
@@ -295,7 +375,7 @@ void ESP_WIFI::check_Wait_Internet()
    unsigned long tstart, tnow, timeout = 1000 * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
    tnow, tstart = millis();
    while(tnow < tstart + timeout ){
-    if(espSendCommand(String(F("AT+PING=\""))+ String(HOST_IP_STR) +"\"" , (char*)"OK" , 5000 ))
+    if(espSendCommand(String(F("AT+PING=\""))+ String(HOST_IP_STR) +"\"", STATE::OK , 5000 ))
       break;
     tnow = millis();
     delay(10000);
@@ -306,7 +386,7 @@ void ESP_WIFI::check_Wait_Internet()
 void ESP_WIFI::closeConnect()
 {
   if(wifi_initialized){
-    espSendCommand(F("AT+CWQAP") , ok_str, 5000 );
+    espSendCommand(F("AT+CWQAP"), STATE::OK, 5000 );
     wifi_initialized = false;
     esp_power_switch(false);
   }  
@@ -320,16 +400,16 @@ bool ESP_WIFI::sendError_check()
   if(sendErrorCounter > 3)
     res = false;
   else  
-    res = espSendCommand( F("AT+PING=\"192.168.8.1\"") , (char*)"OK" , 5000); // попытка пингануть модем    
+    res = espSendCommand( F("AT+PING=\"192.168.8.1\""), STATE::OK , 5000); // попытка пингануть модем    
     
   if(!res){
-    res = espSendCommand(String(F("AT+PING=\"")) + String(HOST_IP_STR) +"\"" , (char*)"OK" , 15000); // попытка пингануть свой сервер
+    res = espSendCommand(String(F("AT+PING=\"")) + String(HOST_IP_STR) +"\"", STATE::OK , 15000); // попытка пингануть свой сервер
     if(res){ // все наладилось
         sendErrorCounter = 0;
         dnsFail = 0;
         return 0;
         }
-    res = espSendCommand(F("AT+PING=\"192.168.0.1\"") , (char*)"OK" , 5000); // попытка пингануть роутер
+    res = espSendCommand(F("AT+PING=\"192.168.0.1\""), STATE::OK , 5000); // попытка пингануть роутер
     if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если роутер жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
       closeConnect(); // izh 22-05-2020 отключить от WIFI
       lastRouterReboot = millis();

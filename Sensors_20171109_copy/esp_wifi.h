@@ -1,8 +1,10 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  21-06-2020
+ Last changed:  23-06-2020
 */
+enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4};
+
 class ESP_WIFI {
 //protected:  
   String buffer;
@@ -24,7 +26,8 @@ class ESP_WIFI {
 
   ESP_WIFI();
   bool espSerialSetup();
-  bool espSendCommand(const String& cmd, char* goodResponse, unsigned long timeout);
+  bool espSendCommand2(const String& cmd, char* goodResponse, unsigned long timeout);
+  bool espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout);
   bool send2site(const String& reqStr);
   bool _send2site(const String& reqStr, const String& postBuf);
 
