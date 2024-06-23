@@ -748,7 +748,7 @@ void checkPump_check()  // запускается один раз в час
     responseProcessing(F("command=fill_tank;30;"));
   }
   if (open_tap_time < 24 && now.hour() == open_tap_time) {  // полить в теплице
-    responseProcessing(F("command=open_tap;120;"));
+    responseProcessing(F("command=open_tap;180;"));
   }
   //esp.addEvent2Buffer(12, "hour=" + String(now.hour()));
   if (now.hour() == 0) {
