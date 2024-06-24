@@ -402,7 +402,12 @@ void timerInterrupt() {
 //------------------------------------------------------------------------
 String getCurrentDate(byte noYear = 1){
   DateTime now = RTC.now();
-  short d[6] = { now.year(),now.day(), now.month(), now.hour(), now.minute(), now.second() };
+  short d[6] = { now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second() };
+  if(noYear == 1){ // для режима трассировки - сначала день, потом месяц
+    short tmp = d[1];
+    d[1] = d[2];
+    d[2] = tmp;
+  }
   String dd;
   dd.reserve(20);
   for (byte i = noYear; i < 6; i++) {
