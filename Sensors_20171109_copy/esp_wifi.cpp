@@ -107,10 +107,10 @@ bool ESP_WIFI::_send2site(const String& reqStr, const String& postBuf)
       r = espSendCommand( cmd2, STATE::OK , 5000 );             // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
       r = espSendCommand( request , STATE::CLOSED , 15000 );  // отослать запрос и получить ответ
-      if(!r){
+      /*if(!r){
         delay(1000);
         continue;
-      }
+      }*/
       
       //espSendCommand("AT+CIPCLOSE"STATE::OK , 5000 );
       break;
@@ -276,7 +276,7 @@ void ESP_WIFI::addEvent2Buffer(short id, const String& msgText)
   if(!is_json)
     str += "\"";
   str += msgText;
-  if(is_json)
+  if(!is_json)
     str += "\"";
   str += F(",\"date\":\"");
   str += getCurrentDate(0);
@@ -354,7 +354,8 @@ void ESP_WIFI::closeConnect()
 //------------------------------------------------------------------------
 bool ESP_WIFI::sendError_check()
 {
-  trace( String(F("WSSID=")) + WSSID + String(F(" SErr=")) + String(sendErrorCounter) + String(F(" RCErr=")) + String(routerConnectErrorCounter) + String(F(" httpErr=")) + String(httpFailCounter) + String(F(" MsgLen=")) +String(maxSendedMSG));
+  trace( String(F(" SErr=")) + String(sendErrorCounter) + String(F(" RCErr=")) + String(routerConnectErrorCounter) + 
+          String(F(" httpErr=")) + String(httpFailCounter) + String(F(" MsgLen=")) +String(maxSendedMSG) + String(F(" mem=")) +String(checkMemoryFree()));
   bool res = true;
   if(sendErrorCounter > 3)
     res = false;
