@@ -14,15 +14,15 @@ class ESP_WIFI {
   unsigned long lastWIFISended;
   short sendErrorCounter;
   short httpFailCounter;
-  bool httpFail;
+  
   short routerConnectErrorCounter;
   int routerRebootCount = 0;              // счетчик перезагрузок роутера
   unsigned long lastRouterReboot;         // время последней перезагрузки роутера
 
   int sendErrorCounter_ForAll;
   unsigned long sendCounter_ForAll;
-  
   unsigned long bytesSended;
+  short maxSendedMSG;
 
   ESP_WIFI();
   bool espSerialSetup();

@@ -160,7 +160,9 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
 {
   trace(String(F("espSendCommand(\"")) + cmd + String(F("\",")) + String((byte)goodResponse) + "," + String(timeout) + String(F(")")) );
   ESP_Serial.println(cmd);
-  
+  if(maxSendedMSG < cmd.length())
+    maxSendedMSG = cmd.length();
+    
   unsigned long tnow, tstart;
   bool result;
   tnow = tstart = millis();
@@ -204,7 +206,15 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
   }
   String msg = F("espSendCommand:");
   if ( recived) {
-    result = (state_str_on[(byte)STATE::ERR] || (state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK])) ? false : true;
+    bool httpFail;
+    if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
+      httpFail = true;
+      httpFailCounter++;
+    }
+    else 
+      httpFail = false;
+      
+    result = (state_str_on[(byte)STATE::ERR] || httpFail) ? false : true;
     msg += (result) ? F("SUCCESS") : F("ERROR");
   }
   else {
@@ -344,7 +354,7 @@ void ESP_WIFI::closeConnect()
 //------------------------------------------------------------------------
 bool ESP_WIFI::sendError_check()
 {
-  trace( "WSSID=" + WSSID + " SErr=" + String(sendErrorCounter) + " RCErr=" + String(routerConnectErrorCounter) + " httpErr=" + String(httpFailCounter));
+  trace( String(F("WSSID=")) + WSSID + String(F(" SErr=")) + String(sendErrorCounter) + String(F(" RCErr=")) + String(routerConnectErrorCounter) + String(F(" httpErr=")) + String(httpFailCounter) + String(F(" MsgLen=")) +String(maxSendedMSG));
   bool res = true;
   if(sendErrorCounter > 3)
     res = false;
@@ -355,7 +365,6 @@ bool ESP_WIFI::sendError_check()
     res = espSendCommand(String(F("AT+PING=\"")) + String(HOST_IP_STR) +"\"", STATE::OK , 15000); // попытка пингануть свой сервер
     if(res){ // все наладилось
         sendErrorCounter = 0;
-        httpFail = 0;
         return 0;
         }
     res = espSendCommand(F("AT+PING=\"192.168.0.1\""), STATE::OK , 5000); // попытка пингануть роутер
