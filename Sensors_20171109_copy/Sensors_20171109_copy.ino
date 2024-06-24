@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  22-06-2024	-++
+  Last changed:  24-06-2024	-++
 */
-#define VERSION "Ver 1.158 of 23-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.159 of 24-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -400,13 +400,32 @@ void timerInterrupt() {
 }
 
 //------------------------------------------------------------------------
+String getCurrentDate(byte noYear = 1){
+  DateTime now = RTC.now();
+  short d[6] = { now.year(),now.day(), now.month(), now.hour(), now.minute(), now.second() };
+  String dd;
+  dd.reserve(20);
+  for (byte i = noYear; i < 6; i++) {
+    if (d[i] < 10)
+      dd += "0";
+    dd += String(d[i]);
+    if (i <= 1)
+      dd += "-";
+    else if (i == 2)
+      dd += " ";
+    else if (i < 5)
+      dd += ":";
+  }
+  return dd;
+}  
+//------------------------------------------------------------------------
 void trace(const String& msg) {
 #ifdef TRACE
   if (!traceInit) {
     traceInit = true;
     Serial.begin(BAUD);  // инициализируем порт
   }
-  DateTime now = RTC.now();
+  //DateTime now = RTC.now();
   /*
     Serial.print(now.year(), DEC);
     Serial.print('-');
@@ -421,7 +440,7 @@ void trace(const String& msg) {
     Serial.print(now.second(), DEC);
   */
   //Serial.println( String(millis()) + ":" + msg );
-  short d[5] = { now.day(), now.month(), now.hour(), now.minute(), now.second() };
+  /*short d[5] = { now.day(), now.month(), now.hour(), now.minute(), now.second() };
   String dd;
   for (int i = 0; i < 5; i++) {
     if (d[i] < 10)
@@ -434,7 +453,8 @@ void trace(const String& msg) {
     else if (i < 4)
       dd += ":";
   }
-  Serial.println(dd + "=>" + msg);
+  */
+  Serial.println(getCurrentDate(1) + "=>" + msg);
   //Serial.println( dd + " " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) +  "=>" + msg );
 #endif
 }

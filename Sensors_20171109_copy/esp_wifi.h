@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  23-06-2020
+ Last changed:  24-06-2020
 */
 enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4};
 
@@ -13,8 +13,8 @@ class ESP_WIFI {
   bool wifi_initialized = false;
   unsigned long lastWIFISended;
   short sendErrorCounter;
-  short dnsFailCounter;
-  bool dnsFail;
+  short httpFailCounter;
+  bool httpFail;
   short routerConnectErrorCounter;
   int routerRebootCount = 0;              // счетчик перезагрузок роутера
   unsigned long lastRouterReboot;         // время последней перезагрузки роутера
@@ -26,7 +26,6 @@ class ESP_WIFI {
 
   ESP_WIFI();
   bool espSerialSetup();
-  bool espSendCommand2(const String& cmd, char* goodResponse, unsigned long timeout);
   bool espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout);
   bool send2site(const String& reqStr);
   bool _send2site(const String& reqStr, const String& postBuf);
