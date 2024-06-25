@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  24-06-2024	-++
+  Last changed:  25-06-2024	-++
 */
-#define VERSION "Ver 1.159 of 24-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.160 of 25-06-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -203,12 +203,12 @@ Activity check_open_tap((60000), open_tap_check);
 //--------------------------------------------------------------------------------
 #include "device.h"
 class Boiler
-  pump(26, "pump"),
-  boiler(23, "boiler", 1, 22),
-  heating_cable(27, "hc", 4),
-  vegetableStorage(31, "hvs", 7, 0, 5),
-  fill_tank(VALVE_ON_PIN, "fill_tank"),
-  open_tap(0, "open_tap");
+  pump(PUMP_CMD, 26, "pump"),
+  boiler(BOILER_CMD, 23, "boiler", 1, 22),
+  heating_cable(HEAT_CABLE_CMD, 27, "hc", 4),
+  vegetableStorage(HVS_CMD, 31, "hvs", 7, 0, 5),
+  fill_tank(FILL_TANK_CMD, VALVE_ON_PIN, "fill_tank"),
+  open_tap(OPEN_TAB_CMD, 0, "open_tap");
 
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,

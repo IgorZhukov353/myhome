@@ -1,12 +1,22 @@
 /* 
  Igor Zhukov (c)
  Created:       21-11-2023
- Last changed:  21-06-2024
+ Last changed:  25-06-2024
 */
+// id команд в таблице COMMAND
+#define BOILER_CMD      1
+#define PUMP_CMD        2
+#define HEAT_CABLE_CMD  3
+#define HVS_CMD         4
+#define FILL_TANK_CMD   5
+#define OPEN_TAB_CMD    6
+#define REBOOT_ROUTER_CMD   7
+#define REBOOT_CAM_CMD  8
 
 //---------------------------------------------------------------------------
 class DeviceControl {
   public:
+    byte id;
     short pin;
     String name;
     bool ControlOn;                         // признак управления
@@ -34,8 +44,9 @@ class Boiler : public DeviceControl {
     bool  CurrentMode;                // текущий режим ардуино-термостата
     unsigned long putInfoLastTime;    // время отправки инфо (1 раз в мин)
     
-    Boiler(short ppin, String pname, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0): DeviceControl(ppin)  {
+    Boiler(byte _id,short ppin, String pname, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0): DeviceControl(ppin)  {
       //  pin = ppin;
+      id = _id;
       name = pname;
       pin2 = ppin2;
       tempSensorId = ptempSensorId;
@@ -80,6 +91,7 @@ class Boiler : public DeviceControl {
         pinMode(pin2, OUTPUT);
         digitalWrite(pin2, LOW); // включено (отключаем штатный термостат)
       }
+      totalWorkTime = millis();
     };
     void processing()
     {
@@ -132,7 +144,7 @@ class Boiler : public DeviceControl {
       str.reserve(100);
       //unsigned long ms = activeWorkTime + (CurrentMode)?millis() - tmpWorkTime:0;
       str = F("{\"id\":\"");
-      str += name;
+      str += String(id);
       str +=  F("\",\"l\":");
       str +=  String((ControlOn) ? ControlUntilTime - millis() : 0);
       str +=  F(",\"cnt\":");
@@ -143,7 +155,10 @@ class Boiler : public DeviceControl {
       str +=  String(CurrentMode);
       str +=  F(",\"actt\":");
       str +=  String(activeWorkTime + ((CurrentMode) ? millis() - tmpWorkTime : 0));
-      str +=  ((tempSensorId > 0) ? String(F(",\"t\":")) + String(TargetTemp) + String(F(",\"curt\" : \"")) + String(currTemp) + String(F("\"")) : "");
+      str +=  F(",\"ont\":");
+      str +=  String(millis() - totalWorkTime);
+      if(tempSensorId > 0)
+        str += String(F(",\"t\":")) + String(TargetTemp) + String(F(",\"curt\" : \"")) + String(currTemp) + String(F("\""));
       str +=  F("}");
       trace( str);
       esp.addEvent2Buffer(8, str);
