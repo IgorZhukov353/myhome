@@ -1,6 +1,6 @@
 <?php
 // izh 2019-11-14 (C)
-// last update 2023-11-21
+// last update 2024-06-25
 // через POST или GET
 /* пример запроса
 POST /upd/send_info.php HTTP/1.1
@@ -61,6 +61,7 @@ try {
 			$id = $result_parse[$i]->id;
         	
         $date = (isset($result_parse[$i]->date) == true)? $result_parse[$i]->date: date("Y-m-d H:i:s");
+        //echo $result_parse[$i]->date . '---'. date("Y-m-d H:i:s");
 
 		if($type == "S"){
 			$value = $result_parse[$i]->v;
@@ -96,14 +97,60 @@ try {
 				} 
 			}
 		else if($type == "E"){	
-		        if(isset($result_parse[$i]->text)){
-		            if( is_object($result_parse[$i]->text))
-            		    $text = json_encode($result_parse[$i]->text);
-            		else
-            		    $text = $result_parse[$i]->text;
-                }
+            if (isset($result_parse[$i]->text))
+            {
+                if ($id == 8 && is_object($result_parse[$i]->text)) // обработка команды
+                {
+                    $command = $result_parse[$i]->text;
+					
+					/* [{"type":"E","id":8,"text":{"id":"fill_tank","l":1799998,"cnt":1,"w":1,"a":1,"actt":1},"date":"2024-06-24 19:11:10"}] */
+					
+					$command_id = $command->id;
+	                $REMAIN_TIME = round($command->l / 1000,0);
+					$CURRENT_ACTIVE_COUNT = $command->cnt;
+					$ONLINE = $command->w;
+					$ACTIVE = $command->a;
+					$CURRENT_ACTIVE_TIME = round($command->actt / 1000,0);
+					$CURRENT_ONLINE_TIME = round($command->ont / 1000,0);
+					$DOP_INFO = json_encode($command->dopopt);
+					
+					$sql = "SELECT change_online,online FROM COMMAND2 WHERE COMMAND_ID=" . $command_id;
+					$stmt = mysqli_query($link, $sql);
+					$row = mysqli_fetch_object($stmt);
+					$table_change_online = $row->change_online;
+					$table_online = $row->online;
+					mysqli_stmt_close($stmt);
+
+					$sql = "update COMMAND2 set ";
+					if($ONLINE){
+						if(!$table_online){ // запуск команды
+							$sql .= "ONLINE=1,LAST_START_DATE=sysdate(),CHANGE_ONLINE=0,ONLINE_COUNT=ONLINE_COUNT+1,ACTIVE=$ACTIVE";
+						}
+						else {	// продолжение работы команды
+							$sql .= "REMAIN_TIME=$REMAIN_TIME,DOP_INFO=$DOP_INFO,CURRENT_ACTIVE_TIME=$CURRENT_ACTIVE_TIME,CURRENT_ACTIVE_COUNT=$CURRENT_ACTIVE_COUNT,CURRENT_ONLINE_TIME=$CURRENT_ONLINE_TIME,ACTIVE=$ACTIVE";
+						}
+					}
+					else{
+						if($table_online){ // остановка команды
+							$sql = $sql . "ONLINE=0,CHANGE_ONLINE=0,REMAIN_TIME=0,CURRENT_ACTIVE_TIME=0,CURRENT_ACTIVE_COUNT=0,ACTIVE=0,CURRENT_ONLINE_TIME=0,
+							ONLINE_TOTAL_TIME=ONLINE_TOTAL_TIME+$CURRENT_ONLINE_TIME,ACTIVE_TOTAL_TIME=ACTIVE_TOTAL_TIME+$CURRENT_ONLINE_TIME,ACTIVE_COUNT=ACTIVE_COUNT+$CURRENT_ACTIVE_COUNT";
+						}
+					}
+					$sql .= " where COMMAND_ID =$command_id";
+					echo( $sql);
+					$stmt = mysqli_query($link,$sql);
+					mysqli_stmt_close($stmt); /* close statement */
+					
+					$text = json_encode($result_parse[$i]->text);
+					}
                 else
-                    $text = null;
+                {
+                    if (is_object($result_parse[$i]->text)) $text = json_encode($result_parse[$i]->text);
+                    else $text = $result_parse[$i]->text;
+                }
+            }
+            else $text = null;
+
                     
 			//echo "type=E id=". $id. " date=" . $date . " text=". $text ."\n";
 			if ($stmt = mysqli_prepare($link, "INSERT INTO Event(Event_Type_ID,Dop_Info,Date) VALUES (?,?,?)")) {
