@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  25-06-2024	-++
+  Last changed:  02-07-2024	-++
 */
-#define VERSION "Ver 1.160 of 25-06-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.161 of 02-07-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -814,12 +814,13 @@ void setup() {
     dallasTemp[i].begin();
   }
 
-  esp.check_Wait_Internet();
+  if(esp.check_Wait_Internet()){
 
-  esp.addEvent2Buffer(1, "");
-  esp.sendBuffer2Site();
+    esp.addEvent2Buffer(1, "");
+    esp.sendBuffer2Site();
 
-  get_param();
+    get_param();
+  }
 }
 
 //------------------------------------------------------------------------

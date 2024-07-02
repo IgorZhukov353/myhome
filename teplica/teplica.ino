@@ -7,7 +7,7 @@
 #define LEVEL_PIN 42 //39 //(TEMP_PIN+2)
 #define VALVE_WATER_PIN 40 //PIN (TEMP_PIN+3)
 #define WATER_ON_PIN 41 //(TEMP_PIN+4)
-#define WATER_ON_PIN1 42
+#define VALVE_ON_PIN2 39
 
 OneWire oneWire(TEMP_PIN);  //
 byte level=1, savelevel =1;
@@ -29,6 +29,8 @@ void setup() {
   Serial.println("6. Датчик уровня");
   Serial.println("7. Включить 12 В");
   Serial.println("8. Выключить 12 В");
+  Serial.println("9. Открыть клапан 2");
+  Serial.println("10. Закрыть клапан 2");
 }
 void loop() {
   int menu=0;
@@ -90,8 +92,8 @@ void loop() {
       
       pinMode(WATER_ON_PIN, OUTPUT);
       digitalWrite(WATER_ON_PIN, LOW);
-      pinMode(WATER_ON_PIN1, OUTPUT);
-      digitalWrite(WATER_ON_PIN1, LOW);
+    //  pinMode(WATER_ON_PIN1, OUTPUT);
+    //  digitalWrite(WATER_ON_PIN1, LOW);
       
       pinMode(VALVE_WATER_PIN, OUTPUT);
       digitalWrite(VALVE_WATER_PIN, LOW);
@@ -108,9 +110,9 @@ void loop() {
       pinMode(WATER_ON_PIN, OUTPUT);
       digitalWrite(WATER_ON_PIN, HIGH);
       pinMode(WATER_ON_PIN, INPUT);
-       pinMode(WATER_ON_PIN1, OUTPUT);
-      digitalWrite(WATER_ON_PIN1, HIGH);
-      pinMode(WATER_ON_PIN1, INPUT);
+    //   pinMode(WATER_ON_PIN1, OUTPUT);
+    //  digitalWrite(WATER_ON_PIN1, HIGH);
+   //   pinMode(WATER_ON_PIN1, INPUT);
       pinMode(VALVE_WATER_PIN, OUTPUT);
       digitalWrite(VALVE_WATER_PIN, LOW);
   
@@ -135,6 +137,31 @@ void loop() {
       Serial.println("12В выключено.");
       digitalWrite(DC_12V_ON_PIN, HIGH);
       pinMode(DC_12V_ON_PIN, INPUT);
+      break;
+    case 9:
+      //
+      Serial.println("Клапан 2 открыт.");
+       pinMode(VALVE_WATER_PIN, OUTPUT);
+      digitalWrite(VALVE_WATER_PIN, HIGH);
+      pinMode(VALVE_WATER_PIN, INPUT);
+      
+      pinMode(VALVE_ON_PIN, OUTPUT);
+      digitalWrite(VALVE_ON_PIN, HIGH);
+      
+      pinMode(VALVE_ON_PIN2, OUTPUT);
+      digitalWrite(VALVE_ON_PIN2, LOW);
+      
+  
+      //Serial.println(Rh);
+      break;
+      case 10:
+      //
+      Serial.println("Клапан 2 закрыт.");
+      digitalWrite(VALVE_WATER_PIN, HIGH);
+      pinMode(VALVE_WATER_PIN, INPUT);
+      digitalWrite(VALVE_ON_PIN2, HIGH);
+      pinMode(VALVE_ON_PIN2, INPUT);
+      mode = 0;
       break;
     default:
       Serial.println("Пожалуйста, сделайте свой выбор 1,2,3,4,5,6");

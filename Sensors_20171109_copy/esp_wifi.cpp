@@ -326,19 +326,23 @@ void ESP_WIFI::sendBuffer2Site()
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::check_Wait_Internet()
+bool ESP_WIFI::check_Wait_Internet()
 {
    if(!checkInitialized())
-    return;
+    return 0;
+   bool result = false;
    trace(F("check_Wait_Internet ...")); 
    unsigned long tstart, tnow, timeout = 1000 * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
    tnow, tstart = millis();
    while(tnow < tstart + timeout ){
-    if(espSendCommand(String(F("AT+PING=\""))+ String(HOST_IP_STR) +"\"", STATE::OK , 5000 ))
+    if(espSendCommand(String(F("AT+PING=\""))+ String(HOST_IP_STR) +"\"", STATE::OK , 5000 )){
+      result = true;
       break;
+    }
     tnow = millis();
     delay(10000);
     }
+    return result;
 }
 
 //------------------------------------------------------------------------
