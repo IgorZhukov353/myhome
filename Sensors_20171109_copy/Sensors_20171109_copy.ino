@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  02-07-2024	-++
+  Last changed:  04-07-2024	-++
 */
-#define VERSION "Ver 1.161 of 02-07-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.162 of 04-07-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -196,6 +196,7 @@ Activity check_open_tap((60000), open_tap_check);
 
 #define DC_12V_ON_PIN 25
 #define VALVE_ON_PIN 38           //(TEMP_PIN+1)
+#define SPRINKLING_ON_PIN 39
 #define LEVEL_PIN 42              //(TEMP_PIN+2)
 #define VALVE_OR_WATERTAP_PIN 40  //PIN (TEMP_PIN+3)
 #define WATERTAP_ON_PIN 41        //(TEMP_PIN+4)
@@ -208,7 +209,8 @@ class Boiler
   heating_cable(HEAT_CABLE_CMD, 27, "hc", 4),
   vegetableStorage(HVS_CMD, 31, "hvs", 7, 0, 5),
   fill_tank(FILL_TANK_CMD, VALVE_ON_PIN, "fill_tank"),
-  open_tap(OPEN_TAB_CMD, 0, "open_tap");
+  open_tap(OPEN_TAB_CMD, 0, "open_tap"),
+  sprinkling(SPRINKLING_CMD,SPRINKLING_ON_PIN,"sprinkling");
 
 //------------------------------------------------------------------------
 // Переменные, создаваемые процессом сборки,
@@ -236,6 +238,8 @@ void get_param() {
   for (short i = 0; i < checked_ip; i++) {
     str += String(tcp_last_byte[i]) + ((i == checked_ip - 1) ? ")" : ",");
   }
+  str +=  F(" poliv=");
+  str += String(open_tap_time);
   trace(str);
 }
 
@@ -534,13 +538,26 @@ void responseProcessing(const String& response) {
         digitalWrite(WATERTAP_ON_PIN, HIGH);              // пока ставим в положение закрыто (+12В-12В)
         open_tap.init(response, ind2, 1);
         check_open_tap.timeout = 10000; // сделать вызов процедуры обработки раз в 10 сек
+        } else
 
+        if (cmd == F("sprinkling") && !sprinkling.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
+        pinMode(DC_12V_ON_PIN, OUTPUT);         //
+        digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
+        pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);        // выбираем питание для клапана (1)
+        pinMode(SPRINKLING_ON_PIN, OUTPUT);
+        digitalWrite(SPRINKLING_ON_PIN, HIGH);                 // пока выключаем питание клапана
+        sprinkling.init(response, ind2, 1);
+      
       } else if (cmd == F("fill_tank_stop")) {
         if (fill_tank.ControlOn)
           fill_tank.ControlUntilTime = 0;
       } else if (cmd == F("open_tap_stop")) {
         if (open_tap.ControlOn)
           open_tap.ControlUntilTime = 0;
+      } else if (cmd == F("sprinkling_stop")) {
+        if (sprinkling.ControlOn)
+          sprinkling.ControlUntilTime = 0;
       }
 
       else if (cmd == F("setdatetime")) {  // izh 19-02-2020 проверка местного времени, если надо корректировка
@@ -742,6 +759,15 @@ void remoteTermostat_check() {
     heating_cable.processing();
   if (vegetableStorage.ControlOn)
     vegetableStorage.processing();
+  if (sprinkling.ControlOn){
+    sprinkling.processing();
+    if (sprinkling.ControlOn == 0) { // закончили работу
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // все в исходное состояние
+        digitalWrite(DC_12V_ON_PIN, HIGH);
+        pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
+        pinMode(DC_12V_ON_PIN, INPUT);
+    }
+  }
 }
 
 //------------------------------------------------------------------------
@@ -772,6 +798,7 @@ void checkPump_check()  // запускается один раз в час
   if (fill_tank_time < 24 && now.hour() == fill_tank_time && d.a[8].value == 1) {  // наполнить бочку если не полная
     responseProcessing(F("command=fill_tank;30;"));
   }
+  trace("open_tap_time="+String(open_tap_time) + " now.hour=" + String(now.hour()));
   if (open_tap_time < 24 && now.hour() == open_tap_time) {  // полить в теплице
     responseProcessing(F("command=open_tap;180;"));
   }

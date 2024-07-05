@@ -12,6 +12,8 @@
 #define OPEN_TAB_CMD    6
 #define REBOOT_ROUTER_CMD   7
 #define REBOOT_CAM_CMD  8
+#define SPRINKLING_CMD  9
+
 
 //---------------------------------------------------------------------------
 class DeviceControl {
