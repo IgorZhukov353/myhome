@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  04-07-2024	-++
+  Last changed:  09-07-2024	-++
 */
-#define VERSION "Ver 1.162 of 04-07-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.163 of 09-07-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -160,7 +160,7 @@ short timerResetDays;                    // количество дней до �
 unsigned long timerResetOstatok;         // переходящее количество тиков таймера
 short ramMemory = 10000;
 
-short checked_ip = 7;
+short checked_ip = 6;
 byte tcp_last_byte[10] = { 9, 22, 18, 26, 28, 29 };  // список пингуемых ip
 byte pump_force;                                     // =1 включить дренажный насос в установленное время независимо от значения датчика уровня
 byte open_tap_time = 18,                             // в это время открыть кран для полива на 120 мин, если >= 24, то не открывать
@@ -406,7 +406,7 @@ void timerInterrupt() {
 //------------------------------------------------------------------------
 String getCurrentDate(byte noYear = 1){
   DateTime now = RTC.now();
-  short d[6] = { now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second() };
+  uint16_t d[6] = { now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second() };
   if(noYear == 1){ // для режима трассировки - сначала день, потом месяц
     short tmp = d[1];
     d[1] = d[2];
@@ -626,7 +626,10 @@ void responseProcessing(const String& response) {
           fill_tank_time = ParamValue.toInt();
         } else if (ParamName == F("open_tap_time")) {
           open_tap_time = ParamValue.toInt();
+        }else if (ParamName == F("ip_ping_reboot")) {
+          ip_ping_reboot = ParamValue.toInt();
         }
+        
       }
     }
   }
@@ -877,7 +880,7 @@ void loop() {
       dopInfo.reserve(255);
       dopInfo = "";
       for (ind = 0; ind < checked_ip; ind++) {  // пинги видеорегистратора и камер
-        if (!esp.espSendCommand(String(F("AT+PING=\"192.168.0.")) + String(tcp_last_byte[ind]) + String(F("\"")), STATE::OK, 5000)) {
+        if (tcp_last_byte[ind] && !esp.espSendCommand(String(F("AT+PING=\"192.168.0.")) + String(tcp_last_byte[ind]) + String(F("\"")), STATE::OK, 5000)) {
           if (dopInfo != "")
             dopInfo += ",";
           dopInfo += String(tcp_last_byte[ind]);
@@ -886,7 +889,7 @@ void loop() {
       if (dopInfo != ""){
         dopInfo = String(F("PingErr:")) + dopInfo + " ";
         if(ip_ping_reboot == 1)
-          responseProcessing(F("command=reboot_router;"));
+          responseProcessing(F("command=reboot;"));
       }
       dopInfo += F("M=");
       dopInfo += String(floor((((float)ramMemory/1024))*100)/100);

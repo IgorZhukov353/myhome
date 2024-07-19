@@ -1,6 +1,6 @@
 <?php
 // izh 2019-11-14 (C)
-// last update 2024-06-25
+// last update 2024-07-10
 // через POST или GET
 /* пример запроса
 POST /upd/send_info.php HTTP/1.1
@@ -112,14 +112,16 @@ try {
 					$ACTIVE = $command->a;
 					$CURRENT_ACTIVE_TIME = round($command->actt / 1000,0);
 					$CURRENT_ONLINE_TIME = round($command->ont / 1000,0);
-					$DOP_INFO = json_encode($command->dopopt);
+					if(isset($command->dopopt))
+					    $DOP_INFO = json_encode($command->dopopt);
 					
 					$sql = "SELECT change_online,online FROM COMMAND2 WHERE COMMAND_ID=" . $command_id;
 					$stmt = mysqli_query($link, $sql);
 					$row = mysqli_fetch_object($stmt);
 					$table_change_online = $row->change_online;
 					$table_online = $row->online;
-					mysqli_stmt_close($stmt);
+					if (($stmt instanceof mysqli_stmt)) 
+					    mysqli_stmt_close($stmt);
 
 					$sql = "update COMMAND2 set ";
 					if($ONLINE){
@@ -139,9 +141,10 @@ try {
 						}
 					}
 					$sql .= " where COMMAND_ID =$command_id";
-					echo( $sql);
+					//echo( $sql);
 					$stmt = mysqli_query($link,$sql);
-					mysqli_stmt_close($stmt); /* close statement */
+					if (($stmt instanceof mysqli_stmt)) 
+					    mysqli_stmt_close($stmt); /* close statement */
 					
 					$text = json_encode($result_parse[$i]->text);
 					}

@@ -332,7 +332,7 @@ bool ESP_WIFI::check_Wait_Internet()
     return 0;
    bool result = false;
    trace(F("check_Wait_Internet ...")); 
-   unsigned long tstart, tnow, timeout = 1000 * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
+   unsigned long tstart, tnow, timeout = 1000L * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
    tnow, tstart = millis();
    while(tnow < tstart + timeout ){
     if(espSendCommand(String(F("AT+PING=\""))+ String(HOST_IP_STR) +"\"", STATE::OK , 5000 )){
