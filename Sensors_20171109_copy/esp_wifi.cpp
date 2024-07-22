@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  24-06-2024
+ Last changed:  22-07-2024
 */
 
 #include "Arduino.h"
@@ -139,9 +139,17 @@ delay(100);
 r = espSendCommand(F("ATE0"), STATE::OK , 5000 );
 
 delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
-r = espSendCommand( F("AT+CIFSR"), STATE::OK , 5000 );
-r = espSendCommand( F("AT+CWMODE=1"), STATE::OK , 5000 );
-r = espSendCommand( String(F("AT+CWJAP=\"")) + WSSID + String(F("\",\"")) + WPASS + String(F("\"")), STATE::OK , 20000 );
+r = espSendCommand( F("AT+CIFSR"), STATE::OK, 5000 );
+r = espSendCommand( F("AT+CWMODE=1"), STATE::OK, 5000 );
+{
+  String str = F("AT+CWJAP=\""); 
+  str += WSSID;
+  str += F("\",\"");
+  str += WPASS;
+  str += F("\"");
+  r = espSendCommand(str, STATE::OK, 20000);  
+  //r = espSendCommand( String(F("AT+CWJAP=\"")) + WSSID + String(F("\",\"")) + WPASS + String(F("\"")), STATE::OK , 20000 );
+}
 if(!r){
   routerConnectErrorCounter++; 
 }
@@ -158,7 +166,16 @@ static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6};
 
 bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout)
 {
-  trace(String(F("espSendCommand(\"")) + cmd + String(F("\",")) + String((byte)goodResponse) + "," + String(timeout) + String(F(")")) );
+  {
+    String str = F("espSendCommand(\"");
+    str += cmd;
+    str += F("\",");
+    str += (byte)goodResponse;
+    str += F(",");
+    str += timeout;
+    str += F(")");
+    trace(str);
+  }
   ESP_Serial.println(cmd);
   if(maxSendedMSG < cmd.length())
     maxSendedMSG = cmd.length();
@@ -178,7 +195,7 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
   while ( tnow <= tstart + timeout ) {
     c = ESP_Serial.read();
     if(c > 0) {
-      response += String(c);
+      response += c; //String(c);
       //Serial.println(String(cbuffer));
       if (!state_str_on[(byte)STATE::ERR] && !state_str_on[(byte)STATE::CLOSED]) {
         memmove(cbuffer, cbuffer + 1, sizeof(cbuffer) - 1);
@@ -202,34 +219,35 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
   
   while (ESP_Serial.available()) {
     c = ESP_Serial.read();
-    response += String(c);
+    response += c; //String(c);
   }
-  String msg = F("espSendCommand:");
-  if ( recived) {
-    bool httpFail;
-    if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
-      httpFail = true;
-      httpFailCounter++;
-    }
-    else 
-      httpFail = false;
-      
-    result = (state_str_on[(byte)STATE::ERR] || httpFail) ? false : true;
-    msg += (result) ? F("SUCCESS") : F("ERROR");
-  }
-  else {
-    result = false;
-    msg += F("ERROR - Timeout");
-  }
-  msg += F(" - Response time: " );
-  msg += String(millis() - tstart);
-  msg += F("ms.");
+  {
+	  String msg = F("espSendCommand:");
+	  if ( recived) {
+		bool httpFail;
+		if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
+		  httpFail = true;
+		  httpFailCounter++;
+		}
+		else 
+		  httpFail = false;
+		  
+		result = (state_str_on[(byte)STATE::ERR] || httpFail) ? false : true;
+		msg += (result) ? F("SUCCESS") : F("ERROR");
+	  }
+	  else {
+		result = false;
+		msg += F("ERROR - Timeout");
+	  }
+	  msg += F(" - Response time: " );
+	  msg += String(millis() - tstart);
+	  msg += F("ms.");
 
-  msg += F("\n\rRESPONSE:");
-  msg += response;
-  msg += F("\n\r---END RESPONSE---");
-  trace(msg);
-
+	  msg += F("\n\rRESPONSE:");
+	  msg += response;
+	  msg += F("\n\r---END RESPONSE---");
+	  trace(msg);
+  }
   if(result)
     responseProcessing(response);
     
@@ -271,7 +289,7 @@ void ESP_WIFI::addEvent2Buffer(short id, const String& msgText)
   String str;
   bool is_json = (msgText[0] == '{')?1:0;
   str += F("{\"type\":\"E\",\"id\":");
-  str += String(id);
+  str += id;
   str += F(",\"text\":");
   if(!is_json)
     str += "\"";
@@ -289,11 +307,11 @@ void ESP_WIFI::addTempHum2Buffer(short id, short temp, short hum)
 {
   String str;
   str  = F("{\"type\":\"T\",\"id\":");
-  str += String(id);
+  str += id;
   str += F(",\"temp\":"); 
-  str += String(temp);
+  str += temp;
   str += F(",\"hum\":");
-  str += String(hum);
+  str += hum;
   str += F(",\"date\":\"");
   str += getCurrentDate(0);
   str += F("\"}");
@@ -305,9 +323,9 @@ void ESP_WIFI::addSens2Buffer(short id, short val)
 {
   String str;
   str  = F("{\"type\":\"S\",\"id\":");
-  str += String(id);
+  str += id;
   str += F(",\"v\":"); 
-  str += String(val);
+  str += val;
   str += F(",\"date\":\"");
   str += getCurrentDate(0);
   str += F("\"}");
@@ -333,10 +351,13 @@ bool ESP_WIFI::check_Wait_Internet()
    bool result = false;
    trace(F("check_Wait_Internet ...")); 
    unsigned long tstart, tnow, timeout = 1000L * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
-   tnow, tstart = millis();
+   tnow = tstart = millis();
    while(tnow < tstart + timeout ){
-    if(espSendCommand(String(F("AT+PING=\""))+ String(HOST_IP_STR) +"\"", STATE::OK , 5000 )){
-      result = true;
+    String str = F("AT+PING=\"");
+    str += HOST_IP_STR;
+    str += F("\"");
+    result = espSendCommand(str, STATE::OK , 15000); // попытка пингануть свой сервер
+    if(result){
       break;
     }
     tnow = millis();
@@ -358,8 +379,19 @@ void ESP_WIFI::closeConnect()
 //------------------------------------------------------------------------
 bool ESP_WIFI::sendError_check()
 {
-  trace( String(F(" SErr=")) + String(sendErrorCounter) + String(F(" RCErr=")) + String(routerConnectErrorCounter) + 
-          String(F(" httpErr=")) + String(httpFailCounter) + String(F(" MsgLen=")) +String(maxSendedMSG) + String(F(" mem=")) +String(checkMemoryFree()));
+  {
+    String str = F(" SErr=");
+    str += sendErrorCounter; //String(sendErrorCounter);
+    str += F(" RCErr=");
+    str += routerConnectErrorCounter;
+    str += F(" httpErr=");
+    str += httpFailCounter;
+    str += F(" MsgLen=");
+    str += maxSendedMSG;
+    str += F(" mem=");
+    str += checkMemoryFree();
+    trace(str);
+  }
   bool res = true;
   if(sendErrorCounter > 3)
     res = false;
@@ -367,7 +399,12 @@ bool ESP_WIFI::sendError_check()
     res = espSendCommand( F("AT+PING=\"192.168.8.1\""), STATE::OK , 5000); // попытка пингануть модем    
     
   if(!res){
-    res = espSendCommand(String(F("AT+PING=\"")) + String(HOST_IP_STR) +"\"", STATE::OK , 15000); // попытка пингануть свой сервер
+    {
+    String str = F("AT+PING=\"");
+    str += HOST_IP_STR;
+    str += F("\"");
+    res = espSendCommand(str, STATE::OK , 15000); // попытка пингануть свой сервер
+    }
     if(res){ // все наладилось
         sendErrorCounter = 0;
         return 0;
