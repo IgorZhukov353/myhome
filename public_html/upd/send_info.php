@@ -1,6 +1,6 @@
 <?php
 // izh 2019-11-14 (C)
-// last update 2024-07-10
+// last update 2024-07-22
 // через POST или GET
 /* пример запроса
 POST /upd/send_info.php HTTP/1.1
@@ -129,7 +129,7 @@ try {
 							$sql .= "ONLINE=1,LAST_START_DATE=sysdate(),CHANGE_ONLINE=0,ONLINE_COUNT=ONLINE_COUNT+1,ACTIVE=$ACTIVE";
 						}
 						else {	// продолжение работы команды
-							$sql .= "REMAIN_TIME=$REMAIN_TIME,DOP_INFO=$DOP_INFO,CURRENT_ACTIVE_TIME=$CURRENT_ACTIVE_TIME,CURRENT_ACTIVE_COUNT=$CURRENT_ACTIVE_COUNT,CURRENT_ONLINE_TIME=$CURRENT_ONLINE_TIME,ACTIVE=$ACTIVE";
+							$sql .= "REMAIN_TIME=$REMAIN_TIME,CURRENT_ACTIVE_TIME=$CURRENT_ACTIVE_TIME,CURRENT_ACTIVE_COUNT=$CURRENT_ACTIVE_COUNT,CURRENT_ONLINE_TIME=$CURRENT_ONLINE_TIME,ACTIVE=$ACTIVE";
 						}
 					}
 					else{
@@ -140,6 +140,8 @@ try {
 							"ACTIVE_COUNT=ACTIVE_COUNT+$CURRENT_ACTIVE_COUNT";
 						}
 					}
+					if(isset($$DOP_INFO))
+				        $sql .= ",DOP_INFO='$DOP_INFO'";
 					$sql .= " where COMMAND_ID =$command_id";
 					//echo( $sql);
 					$stmt = mysqli_query($link,$sql);
