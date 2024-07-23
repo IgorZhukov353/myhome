@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  22-07-2024
+ Last changed:  23-07-2024
 */
 
 #include "Arduino.h"
@@ -58,71 +58,73 @@ bool ESP_WIFI::send2site(const String& reqStr)
 }
 //------------------------------------------------------------------------
 // выполнить команду на удаленном сервере (через wi-fi)
-bool ESP_WIFI::_send2site(const String& reqStr, const String& postBuf) 
+bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
 {
-	if(!checkInitialized()){
-			return false;
-		}
-
-  String cmd1; 
-  cmd1 = F("AT+CIPSTART=\"TCP\",\"");
-  cmd1 += String(HOST_IP_STR);
-  cmd1 += F("\",80");
-  String request;
-  short maxlen = reqStr.length() + postBuf.length()+ 200;
-  if(maxlen > 1024)
-    maxlen = 1024;
-  request.reserve(maxlen);
-  
-  if(postBuf == ""){
-    request = F("GET /");
-    request += reqStr; 
-    request += F(" HTTP/1.1\r\nHost: ");
-    request += String(HOST_STR);
-    request += F("\r\nConnection: close\r\n");
-    }
-  else {
-    request = F("POST /");
-    request += reqStr; 
-    request += F(" HTTP/1.1\r\nHost: ");
-    request += String(HOST_STR);
-    request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
-    request += String(postBuf.length());
-    request += F("\r\n\r\n");
-    request += postBuf;
-    request += F( "\r\n");    
-    }
-
-  short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
-  String cmd2 = F("AT+CIPSEND=");
-  cmd2 += String(requestLength);
-
-  bool r;
-  for(short i=0; i<3; i++){
-      r = espSendCommand( cmd1, STATE::OK , 15000 );  // установить соединение с хостом (3 попытки)
-      if(!r){
-        delay(1000);
-        continue;
-      }
-      r = espSendCommand( cmd2, STATE::OK , 5000 );             // подготовить отсылку запроса - длина запроса
-      bytesSended += requestLength;
-      r = espSendCommand( request , STATE::CLOSED , 15000 );  // отослать запрос и получить ответ
-      /*if(!r){
-        delay(1000);
-        continue;
-      }*/
-      
-      //espSendCommand("AT+CIPCLOSE"STATE::OK , 5000 );
-      break;
+  if (!checkInitialized()) {
+    return false;
   }
-  if(!r){
+  short postBufLen = (postBuf) ? strlen(postBuf) : 0;
+  bool r;
+  {
+    String cmd1;
+    cmd1 = F("AT+CIPSTART=\"TCP\",\"");
+    cmd1 += HOST_IP_STR;
+    cmd1 += F("\",80");
+    for (short i = 0; i < 3; i++) {
+      r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом (3 попытки)
+      if (r)
+        break;
+      delay(1000);
+    }
+  }
+  if (r) {
+    String request;
+    short maxlen = reqStr.length() + postBufLen + 200;
+    if (maxlen > 1024)
+      maxlen = 1024;
+    request.reserve(maxlen);
+
+    if (!postBuf) {
+      request = F("GET /");
+      request += reqStr;
+      request += F(" HTTP/1.1\r\nHost: ");
+      request += HOST_STR;
+      request += F("\r\nConnection: close\r\n");
+    }
+    else {
+      request = F("POST /");
+      request += reqStr;
+      request += F(" HTTP/1.1\r\nHost: ");
+      request += HOST_STR;
+      request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
+      request += postBufLen;
+      request += F("\r\n\r\n");
+      request += postBuf;
+      request += F( "\r\n");
+    }
+
+    short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+    {
+      String cmd2 = F("AT+CIPSEND=");
+      cmd2 += requestLength;
+      r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
+      bytesSended += requestLength;
+    }
+    for (short i = 0; i < 3; i++) {
+      r = espSendCommand( request, STATE::CLOSED, 15000 );    // отослать запрос и получить ответ
+      if (r)
+        break;
+      delay(1000);
+    }
+  }
+  if (!r) {
     sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
     sendErrorCounter_ForAll++;
   }
   else
     sendErrorCounter = 0;
 
-  sendCounter_ForAll++;  
+  sendCounter_ForAll++;
   lastWIFISended = millis();
   return r;
 }
@@ -275,72 +277,78 @@ bool ESP_WIFI::checkInitialized()
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::addInfo2Buffer(const String& str)
+void ESP_WIFI::addInfo2Buffer(const char *str)
 {
-  if(buffer.length() == 0) 
-    buffer = str; 
-  else 
-    buffer += "," + str;
+  short currBufLen = strlen(buffer);
+  short strLen = strlen(str);
+
+  if (strLen > sizeof(buffer)) {
+    buffOver++;
+    return;
+  }
+  if (!currBufLen) {
+    strcpy(buffer, str);
+    return;
+  }
+  if (currBufLen + strLen + 1 > sizeof(buffer)) {
+    buffOver++;
+    strcpy(buffer, str);
+    return;
+  }
+  strcat(buffer, ",");
+  strcat(buffer, str);
 }
 
 //------------------------------------------------------------------------
 void ESP_WIFI::addEvent2Buffer(short id, const String& msgText)
 {
-  String str;
-  bool is_json = (msgText[0] == '{')?1:0;
-  str += F("{\"type\":\"E\",\"id\":");
-  str += id;
-  str += F(",\"text\":");
-  if(!is_json)
-    str += "\"";
-  str += msgText;
-  if(!is_json)
-    str += "\"";
-  str += F(",\"date\":\"");
-  str += getCurrentDate(0);
-  str += F("\"}");
-  addInfo2Buffer(str);  
+  char *pfmt = (msgText[0] == '{') ? PSTR("{\"type\":\"E\",\"id\":%d,\"text\":%s,\"date\":\"%s\"}") :
+               PSTR("{\"type\":\"E\",\"id\":%d,\"text\":\"%s\",\"date\":\"%s\"}");
+  short len = strlen_P(pfmt) + 1;
+  char fmt[len];
+  strcpy_P(fmt, pfmt);
+  len += 2 + msgText.length() + 20;
+  char loc_buf[len];
+  sprintf(loc_buf, fmt, id, msgText.c_str(), getCurrentDate(0).c_str());
+  //Serial.println(loc_buf);
+  addInfo2Buffer(loc_buf);
 }
-
 //------------------------------------------------------------------------
 void ESP_WIFI::addTempHum2Buffer(short id, short temp, short hum)
 {
-  String str;
-  str  = F("{\"type\":\"T\",\"id\":");
-  str += id;
-  str += F(",\"temp\":"); 
-  str += temp;
-  str += F(",\"hum\":");
-  str += hum;
-  str += F(",\"date\":\"");
-  str += getCurrentDate(0);
-  str += F("\"}");
-  addInfo2Buffer(str);  
+  char *pfmt = PSTR("{\"type\":\"T\",\"id\":%d,\"temp\":%d,\"hum\":%d,\"date\":\"%s\"}");
+  short len = strlen_P(pfmt) + 1;
+  char fmt[len];
+  strcpy_P(fmt, pfmt);
+  len += 2 + 4 + 4 + 20;
+  char loc_buf[len];
+  sprintf(loc_buf, fmt, id, temp, hum, getCurrentDate(0).c_str());
+  //Serial.println(loc_buf);
+  addInfo2Buffer(loc_buf);
 }
 
 //------------------------------------------------------------------------
 void ESP_WIFI::addSens2Buffer(short id, short val)
 {
-  String str;
-  str  = F("{\"type\":\"S\",\"id\":");
-  str += id;
-  str += F(",\"v\":"); 
-  str += val;
-  str += F(",\"date\":\"");
-  str += getCurrentDate(0);
-  str += F("\"}");
-  addInfo2Buffer(str);  
+  char *pfmt = PSTR("{\"type\":\"S\",\"id\":%d,\"v\":%d,\"date\":\"%s\"}");
+  short len = strlen_P(pfmt) + 1;
+  char fmt[len];
+  strcpy_P(fmt, pfmt);
+  len += 2 + 1 + 20;
+  char loc_buf[len];
+  sprintf(loc_buf, fmt, id, val, getCurrentDate(0).c_str());
+  //Serial.println(loc_buf);
+  addInfo2Buffer(loc_buf);
+
 }
 
 //------------------------------------------------------------------------
 void ESP_WIFI::sendBuffer2Site()
 {
-  if(buffer.length() == 0)
+  if (strlen(buffer) == 0)
     return;
-  if(_send2site(String(F("upd/send_info.php")), String(F("str=[")) + buffer + String(F("]"))))
-    buffer = "";
-    
-  //buffer = "";  
+  if (_send2site(F("upd/send_info.php"), buffer))
+    buffer[0] = 0;
 }
 
 //------------------------------------------------------------------------
@@ -390,6 +398,8 @@ bool ESP_WIFI::sendError_check()
     str += maxSendedMSG;
     str += F(" mem=");
     str += checkMemoryFree();
+    str += F(" bufOver=");
+    str += buffOver;
     trace(str);
   }
   bool res = true;

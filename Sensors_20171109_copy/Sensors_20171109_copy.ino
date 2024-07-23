@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  19-07-2024	-++
+  Last changed:  23-07-2024	-++
 */
-#define VERSION "Ver 1.163 of 19-07-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.170 of 23-07-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
