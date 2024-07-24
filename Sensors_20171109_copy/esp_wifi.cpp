@@ -5,15 +5,13 @@
 */
 
 #include "Arduino.h"
+#include "util.h"
 #include "esp_wifi.h"
 
 //--------------------------------------------------
 // внешние функции
-void trace(const String& msg);
 void responseProcessing(const String& resp);
 void esp_power_switch(bool p);
-int checkMemoryFree();
-String getCurrentDate(byte noYear = 1);
 //--------------------------------------------------
 /* пример POST запроса
 POST /upd/send_info.php HTTP/1.1
@@ -63,14 +61,14 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
   if (!checkInitialized()) {
     return false;
   }
-  short postBufLen = (postBuf) ? strlen(postBuf) + 6 : 0;
+  short postBufLen = (postBuf) ? strlen(postBuf) : 0;
   bool r;
   {
     String cmd1;
     cmd1 = F("AT+CIPSTART=\"TCP\",\"");
     cmd1 += HOST_IP_STR;
     cmd1 += F("\",80");
-    for (short i = 0; i < 1; i++) {
+    for (short i = 0; i < 3; i++) {
       r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом (3 попытки)
       if (r)
         break;
@@ -99,9 +97,7 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
       request += postBufLen;
       request += F("\r\n\r\n");
-      request += F("str=[");
       request += postBuf;
-      request += F("]"); 
       request += F( "\r\n");
     }
 
@@ -112,7 +108,7 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
     }
-    for (short i = 0; i < 1; i++) {
+    for (short i = 0; i < 3; i++) {
       r = espSendCommand( request, STATE::CLOSED, 15000 );    // отослать запрос и получить ответ
       if (r)
         break;
@@ -171,7 +167,7 @@ static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6};
 bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout)
 {
   {
-    String str = F("espSendCommand(\"");
+/*    String str = F("espSendCommand(\"");
     str += cmd;
     str += F("\",");
     str += (byte)goodResponse;
@@ -179,7 +175,17 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
     str += timeout;
     str += F(")");
     trace(str);
+*/    
+    trace_begin(F("espSendCommand(\""));
+    trace_s(cmd);
+    trace_s(F("\","));
+    trace_i((byte)goodResponse);
+    trace_s(F(","));
+    trace_l(timeout);
+    trace_s(F(")"));
+    trace_end();  
   }
+  
   ESP_Serial.println(cmd);
   if(maxSendedMSG < cmd.length())
     maxSendedMSG = cmd.length();
@@ -200,7 +206,6 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
     c = ESP_Serial.read();
     if(c > 0) {
       response += c; //String(c);
-      //Serial.println(String(cbuffer));
       if (!state_str_on[(byte)STATE::ERR] && !state_str_on[(byte)STATE::CLOSED]) {
         memmove(cbuffer, cbuffer + 1, sizeof(cbuffer) - 1);
         cbuffer[sizeof(cbuffer) - 1] = c;
@@ -219,14 +224,13 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
       break;
     tnow = millis();
   }
-  //Serial.println(String(state_str_on[0]) + String(state_str_on[1]) + String(state_str_on[2]) + String(state_str_on[3]) + String(state_str_on[4]));
   
   while (ESP_Serial.available()) {
     c = ESP_Serial.read();
     response += c; //String(c);
   }
   {
-	  String msg = F("espSendCommand:");
+    trace_begin(F("espSendCommand:"));
 	  if ( recived) {
 		bool httpFail;
 		if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
@@ -237,20 +241,20 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
 		  httpFail = false;
 		  
 		result = (state_str_on[(byte)STATE::ERR] || httpFail) ? false : true;
-		msg += (result) ? F("SUCCESS") : F("ERROR");
+    trace_s((result) ? F("SUCCESS") : F("ERROR"));
 	  }
 	  else {
 		result = false;
-		msg += F("ERROR - Timeout");
+    trace_s(F("ERROR - Timeout"));
 	  }
-	  msg += F(" - Response time: " );
-	  msg += String(millis() - tstart);
-	  msg += F("ms.");
+    trace_s(F(" - Response time: " ));
+    trace_l(millis() - tstart);
+    trace_s(F("ms."));
 
-	  msg += F("\n\rRESPONSE:");
-	  msg += response;
-	  msg += F("\n\r---END RESPONSE---");
-	  trace(msg);
+	  trace_s(F("\n\rRESPONSE:"));
+	  trace_s(response);
+	  trace_s(F("\n\r---END RESPONSE---"));
+	  trace_end();
   }
   if(result)
     responseProcessing(response);
@@ -390,19 +394,19 @@ void ESP_WIFI::closeConnect()
 bool ESP_WIFI::sendError_check()
 {
   {
-    String str = F(" SErr=");
-    str += sendErrorCounter; //String(sendErrorCounter);
-    str += F(" RCErr=");
-    str += routerConnectErrorCounter;
-    str += F(" httpErr=");
-    str += httpFailCounter;
-    str += F(" MsgLen=");
-    str += maxSendedMSG;
-    str += F(" mem=");
-    str += checkMemoryFree();
-    str += F(" bufOver=");
-    str += buffOver;
-    trace(str);
+    trace_begin( F(" SErr="));
+    trace_i(sendErrorCounter);
+    trace_s(F(" RCErr="));
+    trace_i(routerConnectErrorCounter);
+    trace_s(F(" httpErr="));
+    trace_i(httpFailCounter);
+    trace_s(F(" MsgLen="));
+    trace_i(maxSendedMSG);
+    trace_s(F(" mem="));
+    trace_i(checkMemoryFree());
+    trace_s(F(" bufOver="));
+    trace_i(buffOver);
+    trace_end();
   }
   bool res = true;
   if(sendErrorCounter > 3)

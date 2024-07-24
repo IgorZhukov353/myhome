@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  23-07-2024	-++
+  Last changed:  24-07-2024	-++
 */
-#define VERSION "Ver 1.170 of 23-07-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.180 of 24-07-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -21,7 +21,7 @@
 
 #define MEGA 1
 
-#define TRACE 1
+
 //#undef TRACE
 
 #define PIN0 0  // Serial0 RX
@@ -88,7 +88,7 @@
 #define BAUD 115200  //9600
 
 //-------------------------------------------------
-RTC_DS1307 RTC;  // часы реального времени
+//RTC_DS1307 RTC;  // часы реального времени
 ESP_WIFI esp;    // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -147,7 +147,7 @@ struct DATA {
   };
 } d;
 
-bool traceInit = false;             // признак инициализации трассировки
+
 bool powerAC_off = false;           // признак отсутствия внешнего напряжения 220В
 float accum_DC_V;                   // напряжение на аккумуляторе БП
 unsigned long powerAC_ON_OFF_Time;  // время отключения внешнего напряжения 220В
@@ -158,7 +158,7 @@ unsigned long lastWatchDogOK_Sended2BD;  // время отправки дежу
 short timerResetCounter;                 // количество сбросов таймера с начала работы (отслеживание перехода через 50 дней)
 short timerResetDays;                    // количество дней до последнего сброса таймера (переходящее количество дней для вычисление общего количества дней)
 unsigned long timerResetOstatok;         // переходящее количество тиков таймера
-short ramMemory = 10000;
+
 
 short checked_ip = 6;
 byte tcp_last_byte[10] = { 9, 22, 18, 26, 28, 29 };  // список пингуемых ip
@@ -175,7 +175,7 @@ void remoteTermostat_check();
 void sendError_check();
 void sendBuffer2Site_check();
 void checkPump_check();
-void trace(const String& msg);
+
 float readDallasTemp(DallasTemperature *d);
 void remoteRebootExecute(int act);
 float getTemp(short tempSensorId);
@@ -202,7 +202,9 @@ Activity check_open_tap((60000), open_tap_check);
 #define WATERTAP_ON_PIN 41        //(TEMP_PIN+4)
 
 //--------------------------------------------------------------------------------
+#include "util.h"
 #include "device.h"
+
 class Boiler
   pump(PUMP_CMD, 26, "pump"),
   boiler(BOILER_CMD, 23, "boiler", 1, 22),
@@ -212,23 +214,6 @@ class Boiler
   open_tap(OPEN_TAB_CMD, 0, "open_tap"),
   sprinkling(SPRINKLING_CMD,SPRINKLING_ON_PIN,"sprinkling");
 
-//------------------------------------------------------------------------
-// Переменные, создаваемые процессом сборки,
-// когда компилируется скетч
-extern int __bss_end;
-extern void *__brkval;
-
-// Функция, возвращающая количество свободного ОЗУ (RAM)
-int checkMemoryFree() {
-  int freeValue;
-  if ((int)__brkval == 0)
-    freeValue = ((int)&freeValue) - ((int)&__bss_end);
-  else
-    freeValue = ((int)&freeValue) - ((int)__brkval);
-  if(ramMemory > freeValue)
-    ramMemory = freeValue;
-  return freeValue;
-}
 //------------------------------------------------------------------------
 void get_param() {
   esp.send2site("get_param.php");  // прочитать параметры
@@ -401,71 +386,6 @@ void blinky_check() {
 // ---------------------------------------------------обработчик прерывания, 2 мс
 void timerInterrupt() {
   //  wdt_reset();  // сброс сторожевого таймера
-}
-
-//------------------------------------------------------------------------
-String getCurrentDate(byte noYear = 1){
-  DateTime now = RTC.now();
-  uint16_t d[6] = { now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second() };
-  if(noYear == 1){ // для режима трассировки - сначала день, потом месяц
-    short tmp = d[1];
-    d[1] = d[2];
-    d[2] = tmp;
-  }
-  String dd;
-  dd.reserve(20);
-  for (byte i = noYear; i < 6; i++) {
-    if (d[i] < 10)
-      dd += "0";
-    dd += String(d[i]);
-    if (i <= 1)
-      dd += "-";
-    else if (i == 2)
-      dd += " ";
-    else if (i < 5)
-      dd += ":";
-  }
-  return dd;
-}  
-//------------------------------------------------------------------------
-void trace(const String& msg) {
-#ifdef TRACE
-  if (!traceInit) {
-    traceInit = true;
-    Serial.begin(BAUD);  // инициализируем порт
-  }
-  //DateTime now = RTC.now();
-  /*
-    Serial.print(now.year(), DEC);
-    Serial.print('-');
-    Serial.print(now.month(), DEC);
-    Serial.print('-');
-    Serial.print(now.day(), DEC);
-    Serial.print(' ');
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-  */
-  //Serial.println( String(millis()) + ":" + msg );
-  /*short d[5] = { now.day(), now.month(), now.hour(), now.minute(), now.second() };
-  String dd;
-  for (int i = 0; i < 5; i++) {
-    if (d[i] < 10)
-      dd += "0";
-    dd += String(d[i]);
-    if (i == 0)
-      dd += ".";
-    else if (i == 1)
-      dd += " ";
-    else if (i < 4)
-      dd += ":";
-  }
-  */
-  Serial.println(getCurrentDate(1) + "=>" + msg);
-  //Serial.println( dd + " " + String(now.hour()) + ":" + String(now.minute()) + ":" + String(now.second()) +  "=>" + msg );
-#endif
 }
 
 //------------------------------------------------------------------------
