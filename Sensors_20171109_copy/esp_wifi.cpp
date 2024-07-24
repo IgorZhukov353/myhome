@@ -70,7 +70,7 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
     r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом (3 попытки)
   }
   if (r) {
-    String request0, request;
+    String request, request2;
     short requestLength;
     short maxlen = reqStr.length() + postBufLen + 200;
     if (maxlen > 1024)
@@ -86,36 +86,28 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     }
     else {
-      request0 = F("POST /");
-      request0 += reqStr;
-      request0 += F(" HTTP/1.1\r\nHost: ");
-      request0 += HOST_STR;
-      request0 += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
-      request0 += postBufLen;
-      request0 += F("\r\n\r\n");
-      request0 += F("str=[");
+      request = F("POST /");
+      request += reqStr;
+      request += F(" HTTP/1.1\r\nHost: ");
+      request += HOST_STR;
+      request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
+      request += postBufLen;
+      request += F("\r\n\r\n");
+      request += F("str=[");
       //request += postBuf;
       
-      request = F("]"); 
-      request += F( "\r\n");
-      requestLength = request0.length() + postBufLen - 6 + request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+      request2 = F("]"); 
+      request2 += F( "\r\n");
+      requestLength = request.length() + postBufLen - 6 + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     }
     
-    //
     {
       String cmd2 = F("AT+CIPSEND=");
       cmd2 += requestLength;
       r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
     }
-    if (postBuf) {
-      trace_begin(F("espSendCommand(\""));
-      trace_s(request0);
-      ESP_Serial.print(request0);
-      trace_c(postBuf);
-      ESP_Serial.print(postBuf);
-    }
-    r = espSendCommand( request, STATE::CLOSED, 15000 );    // отослать запрос и получить ответ
+    r = espSendCommand( request, STATE::CLOSED, 15000, postBuf, request2);    // отослать запрос и получить ответ
   }
   if (!r) {
     sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
@@ -166,20 +158,15 @@ return r;
 static const char *state_str[STATE_STR_MAX] = {"OK", "ERROR", "HTTP/1.1", "200 OK", "CLOSED"};
 static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6};
 
-bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout)
+bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout, const char *postBuf, const String &cmd2)
 {
   {
-/*    String str = F("espSendCommand(\"");
-    str += cmd;
-    str += F("\",");
-    str += (byte)goodResponse;
-    str += F(",");
-    str += timeout;
-    str += F(")");
-    trace(str);
-*/    
     trace_begin(F("espSendCommand(\""));
     trace_s(cmd);
+    if(postBuf)
+      trace_c(postBuf);
+    if(cmd2 != "")
+      trace_s(cmd2);
     trace_s(F("\","));
     trace_i((byte)goodResponse);
     trace_s(F(","));
@@ -187,10 +174,18 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
     trace_s(F(")"));
     trace_end();  
   }
-  
+  short msglen = cmd.length();
   ESP_Serial.println(cmd);
-  if(maxSendedMSG < cmd.length())
-    maxSendedMSG = cmd.length();
+  if(postBuf){
+    msglen += strlen(postBuf);  
+    ESP_Serial.println(postBuf);
+  }
+  if(cmd2 != ""){
+    msglen += cmd2.length();
+    ESP_Serial.println(cmd2);
+  }
+  if(maxSendedMSG < msglen)
+    maxSendedMSG = msglen;
     
   unsigned long tnow, tstart;
   bool result;

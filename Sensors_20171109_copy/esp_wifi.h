@@ -28,7 +28,8 @@ class ESP_WIFI {
 
   ESP_WIFI();
   bool espSerialSetup();
-  bool espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout);
+  //bool espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout);
+  bool espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout, const char *postBuf=NULL, const String &cmd2="");
   bool send2site(const String& reqStr);
   //bool _send2site(const String& reqStr, const String& postBuf);
   bool _send2site(const String& reqStr, const char * postBuf);
