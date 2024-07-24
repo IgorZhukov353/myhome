@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  23-07-2024
+ Last changed:  24-07-2024
 */
 
 #include "Arduino.h"
@@ -61,14 +61,14 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
   if (!checkInitialized()) {
     return false;
   }
-  short postBufLen = (postBuf) ? strlen(postBuf) : 0;
+  short postBufLen = (postBuf) ? strlen(postBuf) + 6 : 0;
   bool r;
   {
     String cmd1;
     cmd1 = F("AT+CIPSTART=\"TCP\",\"");
     cmd1 += HOST_IP_STR;
     cmd1 += F("\",80");
-    for (short i = 0; i < 3; i++) {
+    for (short i = 0; i < 1; i++) {
       r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом (3 попытки)
       if (r)
         break;
@@ -97,7 +97,9 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
       request += postBufLen;
       request += F("\r\n\r\n");
+      request += F("str=[");
       request += postBuf;
+      request += F("]"); 
       request += F( "\r\n");
     }
 
@@ -108,7 +110,7 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
     }
-    for (short i = 0; i < 3; i++) {
+    for (short i = 0; i < 1; i++) {
       r = espSendCommand( request, STATE::CLOSED, 15000 );    // отослать запрос и получить ответ
       if (r)
         break;
