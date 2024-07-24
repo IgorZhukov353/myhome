@@ -70,7 +70,8 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
     r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом (3 попытки)
   }
   if (r) {
-    String request, request2;
+    String request0, request;
+    short requestLength;
     short maxlen = reqStr.length() + postBufLen + 200;
     if (maxlen > 1024)
       maxlen = 1024;
@@ -82,35 +83,39 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       request += F(" HTTP/1.1\r\nHost: ");
       request += HOST_STR;
       request += F("\r\nConnection: close\r\n");
+      requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     }
     else {
-      request = F("POST /");
-      request += reqStr;
-      request += F(" HTTP/1.1\r\nHost: ");
-      request += HOST_STR;
-      request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
-      request += postBufLen;
-      request += F("\r\n\r\n");
-      request += F("str=[");
+      request0 = F("POST /");
+      request0 += reqStr;
+      request0 += F(" HTTP/1.1\r\nHost: ");
+      request0 += HOST_STR;
+      request0 += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
+      request0 += postBufLen;
+      request0 += F("\r\n\r\n");
+      request0 += F("str=[");
       //request += postBuf;
       
-      request2 = F("]"); 
-      request2 += F( "\r\n");
+      request = F("]"); 
+      request += F( "\r\n");
+      requestLength = request0.length() + postBufLen - 6 + request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     }
-    short requestLength = request.length() + postBufLen - 6 + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
-    //short requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+    
+    //
     {
       String cmd2 = F("AT+CIPSEND=");
       cmd2 += requestLength;
       r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
     }
-    trace_begin(F("espSendCommand(\""));
-    trace_s(request);
-    ESP_Serial.print(request);
-    trace_c(postBuf);
-    ESP_Serial.print(postBuf);
-    r = espSendCommand( request2, STATE::CLOSED, 15000 );    // отослать запрос и получить ответ
+    if (postBuf) {
+      trace_begin(F("espSendCommand(\""));
+      trace_s(request0);
+      ESP_Serial.print(request0);
+      trace_c(postBuf);
+      ESP_Serial.print(postBuf);
+    }
+    r = espSendCommand( request, STATE::CLOSED, 15000 );    // отослать запрос и получить ответ
   }
   if (!r) {
     sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
