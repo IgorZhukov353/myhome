@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       21-11-2023
- Last changed:  25-06-2024
+ Last changed:  24-07-2024
 */
 // id команд в таблице COMMAND
 #define BOILER_CMD      1
@@ -20,7 +20,7 @@ class DeviceControl {
   public:
     byte id;
     short pin;
-    String name;
+//    String name;
     bool ControlOn;                         // признак управления
     unsigned long ControlUntilTime;         // управлять до этого времени
     unsigned long totalWorkTime;            // общее время работы
@@ -46,10 +46,8 @@ class Boiler : public DeviceControl {
     bool  CurrentMode;                // текущий режим ардуино-термостата
     unsigned long putInfoLastTime;    // время отправки инфо (1 раз в мин)
     
-    Boiler(byte _id,short ppin, String pname, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0): DeviceControl(ppin)  {
-      //  pin = ppin;
+    Boiler(byte _id,short ppin, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0): DeviceControl(ppin)  {
       id = _id;
-      name = pname;
       pin2 = ppin2;
       tempSensorId = ptempSensorId;
       delta = pdelta;
@@ -57,13 +55,16 @@ class Boiler : public DeviceControl {
     };
     void init(const String& response, short ind2, short parInHours=0)
     {
-      trace(name + String(F(": init.")));
+      trace_begin(F("Dev id="));
+      trace_i(id);
+      trace_s(F(" init."));
+      
       putInfoLastTime = 0;
       //trace("2 response=" + response.substring(ind2, response.length()));
       
       short inHours;  // коэфициент время работы для насоса в минутах, для остальных в часах
       short ind;
-      if ( name != "pump" && parInHours == 0) {  // у насоса нет целевой температуры
+      if ( id != PUMP_CMD && parInHours == 0) {  // у насоса нет целевой температуры
         ind2++;
         ind = response.indexOf(";", ind2);
         TargetTemp = response.substring(ind2, ind).toInt();
@@ -77,7 +78,9 @@ class Boiler : public DeviceControl {
       ind2 = response.indexOf(";", ind);
       ControlUntilTime = response.substring(ind, ind2).toInt();
       if (!ControlUntilTime) {
-        String err = name + String(F(": Error period reading!"));
+        String err = F("Dev id=");
+        err += id;
+        err += F("Error period reading!");
         trace(err);
         esp.addEvent2Buffer(4, err);
         return;
@@ -146,21 +149,26 @@ class Boiler : public DeviceControl {
       str.reserve(100);
       //unsigned long ms = activeWorkTime + (CurrentMode)?millis() - tmpWorkTime:0;
       str = F("{\"id\":\"");
-      str += String(id);
+      str += id;
       str +=  F("\",\"l\":");
-      str +=  String((ControlOn) ? ControlUntilTime - millis() : 0);
+      str +=  (ControlOn) ? ControlUntilTime - millis() : 0;
       str +=  F(",\"cnt\":");
-      str +=  String(activeWorkCount);
+      str +=  (activeWorkCount);
       str +=  F(",\"w\":");
-      str +=  String(ControlOn);
+      str +=  ControlOn;
       str +=  F(",\"a\":");
-      str +=  String(CurrentMode);
+      str +=  CurrentMode;
       str +=  F(",\"actt\":");
-      str +=  String(activeWorkTime + ((CurrentMode) ? millis() - tmpWorkTime : 0));
+      str +=  activeWorkTime + ((CurrentMode) ? millis() - tmpWorkTime : 0);
       str +=  F(",\"ont\":");
-      str +=  String(millis() - totalWorkTime);
-      if(tempSensorId > 0)
-        str += String(F(",\"t\":")) + String(TargetTemp) + String(F(",\"curt\" : \"")) + String(currTemp) + String(F("\""));
+      str +=  (millis() - totalWorkTime);
+      if(tempSensorId > 0){
+        str += F(",\"t\":"); 
+        str += (TargetTemp);
+        str += F(",\"curt\" : \""); 
+        str += currTemp;
+        str += F("\"");
+      }
       str +=  F("}");
       trace( str);
       esp.addEvent2Buffer(8, str);

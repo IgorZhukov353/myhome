@@ -206,25 +206,26 @@ Activity check_open_tap((60000), open_tap_check);
 #include "device.h"
 
 class Boiler
-  pump(PUMP_CMD, 26, "pump"),
-  boiler(BOILER_CMD, 23, "boiler", 1, 22),
-  heating_cable(HEAT_CABLE_CMD, 27, "hc", 4),
-  vegetableStorage(HVS_CMD, 31, "hvs", 7, 0, 5),
-  fill_tank(FILL_TANK_CMD, VALVE_ON_PIN, "fill_tank"),
-  open_tap(OPEN_TAB_CMD, 0, "open_tap"),
-  sprinkling(SPRINKLING_CMD,SPRINKLING_ON_PIN,"sprinkling");
+  pump(PUMP_CMD, 26),
+  boiler(BOILER_CMD, 23, 1, 22),
+  heating_cable(HEAT_CABLE_CMD, 27, 4),
+  vegetableStorage(HVS_CMD, 31, 7, 0, 5),
+  fill_tank(FILL_TANK_CMD, VALVE_ON_PIN),
+  open_tap(OPEN_TAB_CMD, 0),
+  sprinkling(SPRINKLING_CMD,SPRINKLING_ON_PIN);
 
 //------------------------------------------------------------------------
 void get_param() {
   esp.send2site("get_param.php");  // прочитать параметры
   String str = F("Checked_IP=");
-  str += String(checked_ip);
+  str += checked_ip;
   str +=  F("(");
   for (short i = 0; i < checked_ip; i++) {
-    str += String(tcp_last_byte[i]) + ((i == checked_ip - 1) ? ")" : ",");
+    str += tcp_last_byte[i];
+    str += ((i == checked_ip - 1) ? ")" : ",");
   }
-  str +=  F(" poliv=");
-  str += String(open_tap_time);
+  str += F(" poliv=");
+  str += open_tap_time;
   trace(str);
 }
 
@@ -272,7 +273,12 @@ void sens_check() {
       d.a[i].value = d.a[i].pre_value;
       d.a[i].change_time = 0;
       esp.addSens2Buffer(d.a[i].id, d.a[i].value);
-      trace(String(F("Sens changed! id=")) + String(d.a[i].id) + " v=" + String(d.a[i].value));
+      
+      trace_begin(F("Sens changed! id="));
+      trace_i(d.a[i].id); 
+      trace_s(F(" v="));
+      trace_i(d.a[i].value);
+      trace_end();
 
       if (d.a[i].id == 5) { /* izh 28-10-2018 */
         powerAC_off = !d.a[i].value;
@@ -304,19 +310,6 @@ void sens_check() {
   }
 }
 
-//------------------------------------------------------------------------
-short Thermister(byte analogPin) {
-  double Temp;
-  int RawADC = analogRead(analogPin);
-  trace(String(F("Thermister.AnalogRead=")) + String(RawADC));
-
-  Temp = log(((10240000 / RawADC) - 10000));
-  Temp = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * Temp * Temp)) * Temp);
-  Temp = Temp - 273.15;  // Kelvin to Celcius
-  short t = round(Temp);
-  //trace(String(F("Thermister.T=")) + String(t) + " " + String(Temp));
-  return t;
-}
 //------------------------------------------------------------------------
 float readDallasTemp(DallasTemperature *d) {
   float ft;
@@ -360,7 +353,14 @@ void temp_check() {
       int ind = i - 3;
       t = round(readDallasTemp(&dallasTemp[ind]));
     }
-    trace(String(F("Темп и влажн. id=")) + String(i + 1) + " t=" + String(t) + " h=" + String(h));
+
+    trace_begin(F("Темп и влажн. id="));
+    trace_i(i + 1);
+    trace_s(F(" t="));
+    trace_i(t);
+    trace_s(F(" h="));
+    trace_i(h);
+    trace_end();
 
     if (h != prevHum[i] || t != prevTemp[i]) {
       esp.addTempHum2Buffer(i + 1, t, h);
@@ -392,7 +392,7 @@ void timerInterrupt() {
 // Обработка принятой строки
 //------------------------------------------------------------------------
 void responseProcessing(const String& response) {
-  String str;
+  
   short ind = response.indexOf(F("command="));  // признак команды
   short ind2;
 
@@ -401,9 +401,12 @@ void responseProcessing(const String& response) {
     ind2 = response.indexOf(";", ind);  // поиск первой точки-запятой
     if (ind2 >= 0) {
       String cmd = response.substring(ind, ind2);
-      str = String(F("cmd=")) + cmd; 
-      trace(str);
-      esp.addEvent2Buffer(7, str);
+      { 
+        String str=F("cmd=");
+        str += cmd; 
+        trace(str);
+        esp.addEvent2Buffer(7, str);
+      }
 
       if (cmd == F("reboot_router"))
         remoteRebootExecute(1);
@@ -490,11 +493,12 @@ void responseProcessing(const String& response) {
 
         DateTime dt1(RTC.now());
         DateTime dt2(date_str.c_str(), time_str.c_str());
-
-        str = String(F("TimeCheckCorr:")) + date_str + " " + time_str;
-        trace(str);
-        esp.addEvent2Buffer(12, str);
-
+        {
+          String str =F("TimeCheckCorr:");
+          str += date_str + " " + time_str;
+          trace(str);
+          esp.addEvent2Buffer(12, str);
+        }
         if (dt1.year() != dt2.year() || dt1.month() != dt2.month() || dt1.day() != dt2.day() || dt1.hour() != dt2.hour() || dt1.minute() != dt2.minute() || dt1.second() != dt2.second()) {
           RTC.adjust(dt2);
           esp.addEvent2Buffer(12, F("Time update."));
@@ -561,7 +565,9 @@ void fill_tank_check()  // запускается один раз в 2 сек, �
 {
   if (fill_tank.ControlOn) {
     if(millis() - fill_tank.putInfoLastTime > 60000){
-      trace(String(F("fill_tank_check level=")) + String(d.a[8].value));
+      trace_begin(F("fill_tank_check level="));
+      trace_i(d.a[8].value);
+      trace_end();
     }
     fill_tank.processing();
     if (fill_tank.ControlOn == 0) { // закончили работу
@@ -589,7 +595,8 @@ void open_tap_check()  // запускается один раз в 20 сек, �
   if (open_tap.ControlOn) {
     bool saved = open_tap.CurrentMode;  // текущий режим, если == false, значит начало работы
     if(millis() - open_tap.putInfoLastTime > 60000){
-      trace("open_tap=3 mode="+ String(open_tap.pin2));
+      trace_begin(F("open_tap=3 mode="));
+      trace_i(open_tap.pin2);
     }
     open_tap.processing();
     if (open_tap.ControlOn == 0) {      // конец полива
@@ -613,7 +620,6 @@ void open_tap_check()  // запускается один раз в 20 сек, �
         pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
         pinMode(WATERTAP_ON_PIN, INPUT);
         check_open_tap.timeout = 60000;
-        
         }
     } else {
       if (!saved && open_tap.CurrentMode) {  // начало работы полива, первый проход
@@ -800,10 +806,15 @@ void loop() {
       dopInfo.reserve(255);
       dopInfo = "";
       for (ind = 0; ind < checked_ip; ind++) {  // пинги видеорегистратора и камер
-        if (tcp_last_byte[ind] && !esp.espSendCommand(String(F("AT+PING=\"192.168.0.")) + String(tcp_last_byte[ind]) + String(F("\"")), STATE::OK, 5000)) {
-          if (dopInfo != "")
-            dopInfo += ",";
-          dopInfo += String(tcp_last_byte[ind]);
+        if (tcp_last_byte[ind]){ 
+          String cmd = F("AT+PING=\"192.168.0.");
+          cmd += tcp_last_byte[ind];
+          cmd += F("\"");
+          if(!esp.espSendCommand(cmd, STATE::OK, 5000)) {
+            if (dopInfo != "")
+              dopInfo += ",";
+            dopInfo += tcp_last_byte[ind];
+          }
         }
       }
       if (dopInfo != ""){
@@ -814,15 +825,16 @@ void loop() {
       dopInfo += F("M=");
       dopInfo += String(floor((((float)ramMemory/1024))*100)/100);
       dopInfo += F(" Snd="); 
-      dopInfo += String(esp.sendCounter_ForAll);
+      dopInfo += esp.sendCounter_ForAll;
       dopInfo += F(" SndKB=");
-      dopInfo += String(esp.bytesSended / 1024);
+      dopInfo += esp.bytesSended / 1024;
       dopInfo += F(" SErr=");
       dopInfo += String(esp.sendErrorCounter_ForAll); 
       dopInfo += F(" RR=");
-      dopInfo += String(esp.routerRebootCount);
+      dopInfo += esp.routerRebootCount;
       dopInfo += F("(");
-      dopInfo += String((t - esp.lastRouterReboot) / (60 * 60000)) + "h.)";
+      dopInfo += ((t - esp.lastRouterReboot) / (60 * 60000));
+      dopInfo += F("h.)");
       
       const unsigned long ticksPerDay = 86400000;  // 1000 * 60 * 60 * 24;
       const unsigned long ticksPerHour = 3600000;  //1000 * 60 * 60;
