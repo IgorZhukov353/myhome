@@ -823,13 +823,15 @@ void loop() {
           responseProcessing(F("command=reboot;"));
       }
       dopInfo += F("M=");
-      dopInfo += String(floor((((float)ramMemory/1024))*100)/100);
+      dopInfo += (floor((((float)ramMemory/1024))*100)/100);
       dopInfo += F(" Snd="); 
       dopInfo += esp.sendCounter_ForAll;
       dopInfo += F(" SndKB=");
       dopInfo += esp.bytesSended / 1024;
       dopInfo += F(" SErr=");
       dopInfo += String(esp.sendErrorCounter_ForAll); 
+      dopInfo += F(" BOvr=");
+      dopInfo += esp.buffOver;
       dopInfo += F(" RR=");
       dopInfo += esp.routerRebootCount;
       dopInfo += F("(");
@@ -850,7 +852,17 @@ void loop() {
       unsigned int h = ((t % ticksPerDay + timerResetOstatok) % ticksPerDay) / ticksPerHour;
 
       lastWatchDogOK_Sended2BD = (t == 0) ? 1 : t;
-      esp.addEvent2Buffer(3, String(F("T=")) + ((d > 0) ? String(d) + String(F("d.")) : "") + String(h) + String(F("h. (")) + dopInfo + String(F(")")));
+      String str =F("T=");
+      if(d > 0){
+          str += d;
+          str += F("d.");
+      }
+      str += h;
+      str += F("h. (");
+      str += dopInfo;
+      str += F(")");
+
+      esp.addEvent2Buffer(3, str);
       traceInit = false;
       ramMemory = 10000;
     }
