@@ -240,7 +240,14 @@ void sens_setup() {
     }
     d.a[i].pre_value = d.a[i].norm_state;
     d.a[i].value = d.a[i].norm_state;
-    trace(String(F("Sens init! id=")) + String(d.a[i].id) + " v=" + String(d.tmp_value) + " v2=" + String(d.a[i].pre_value));
+    
+    trace_begin(F("Sens init! id="));
+    trace_i(d.a[i].id);
+    trace_s(F(" v="));
+    trace_i(d.tmp_value);
+    trace_s(F(" v2="));
+    trace_i(d.a[i].pre_value);
+    trace_end();
   }
 
   //pinMode(5, INPUT);
@@ -257,7 +264,7 @@ void sens_check() {
       d.tmp_value = digitalRead(d.a[i].pin);
     else {
       d.tmp_value = analogRead(d.a[i].pin);
-      trace(String(F("Analog Sens check! id=")) + String(d.a[i].id) + " v=" + String(d.tmp_value));
+      //trace(String(F("Analog Sens check! id=")) + String(d.a[i].id) + " v=" + String(d.tmp_value));
       if (d.tmp_value > 10)
         d.tmp_value = 1;
       else
@@ -532,17 +539,11 @@ void responseProcessing(const String& response) {
             if (ind02 == -1)
               ind02 = ParamValue.length();
             tcp_last_byte[i] = ParamValue.substring(ind01, ind02).toInt();
-            //Serial.print(ind01);
-            //Serial.print(":");
-            //Serial.print(ind02);
-            //Serial.print("=");
-            //Serial.println(tcp_last_byte[i]);
             ind01 = ind02 + 1;
             checked_ip = i + 1;
             if (ind02 == ParamValue.length())
               break;
           }
-          //Serial.println(checked_ip);
         } else if (ParamName == F("param_pump_force")) {
           pump_force = ParamValue.substring(0, 1).toInt();
           //Serial.println(pump_force);
@@ -553,7 +554,6 @@ void responseProcessing(const String& response) {
         }else if (ParamName == F("ip_ping_reboot")) {
           ip_ping_reboot = ParamValue.toInt();
         }
-        
       }
     }
   }
