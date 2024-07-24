@@ -163,10 +163,10 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
   {
     trace_begin(F("espSendCommand(\""));
     trace_s(cmd);
-    if(postBuf)
+    if(postBuf){
       trace_c(postBuf);
-    if(cmd2 != "")
       trace_s(cmd2);
+    }
     trace_s(F("\","));
     trace_i((byte)goodResponse);
     trace_s(F(","));
@@ -175,15 +175,16 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
     trace_end();  
   }
   short msglen = cmd.length();
-  ESP_Serial.println(cmd);
   if(postBuf){
     msglen += strlen(postBuf);  
-    ESP_Serial.println(postBuf);
-  }
-  if(cmd2 != ""){
     msglen += cmd2.length();
+    ESP_Serial.print(cmd);
+    ESP_Serial.print(postBuf);
     ESP_Serial.println(cmd2);
   }
+  else
+    ESP_Serial.println(cmd);
+    
   if(maxSendedMSG < msglen)
     maxSendedMSG = msglen;
     
