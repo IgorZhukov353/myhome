@@ -428,7 +428,8 @@ bool ESP_WIFI::sendError_check()
       closeConnect(); // izh 22-05-2020 отключить от WIFI
       lastRouterReboot = millis();
       routerRebootCount++;
-      return 1;
+      //return 1;
+      return 0;
       }
     }
   return 0;
