@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  24-07-2024
+ Last changed:  25-07-2024
 */
 
 #include "Arduino.h"
@@ -98,7 +98,7 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       
       request2 = F("]"); 
       request2 += F( "\r\n");
-      requestLength = request.length() + postBufLen - 6 + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+      requestLength = request.length() + (postBufLen - 6) + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     }
     
     {
@@ -124,16 +124,19 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
 //------------------------------------------------------------------------
 bool ESP_WIFI::espSerialSetup() 
 {
-  bool r;
+bool r;
 esp_power_switch(true);
 delay(200);
 
 ESP_Serial.begin(115200); // default baud rate for ESP8266
 delay(100);
+r = espSendCommand(F("AT"), STATE::OK , 5000 );
 r = espSendCommand(F("ATE0"), STATE::OK , 5000 );
+//AT+RST
+r = espSendCommand( F("AT+GMR"), STATE::OK, 5000 );
 
-delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
-r = espSendCommand( F("AT+CIFSR"), STATE::OK, 5000 );
+//delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
+
 r = espSendCommand( F("AT+CWMODE=1"), STATE::OK, 5000 );
 {
   String str = F("AT+CWJAP=\""); 
@@ -147,8 +150,10 @@ r = espSendCommand( F("AT+CWMODE=1"), STATE::OK, 5000 );
 if(!r){
   routerConnectErrorCounter++; 
 }
-else
+else{
   routerConnectErrorCounter = 0;
+  r = espSendCommand( F("AT+CIFSR"), STATE::OK, 5000 );
+}
 return r;
 }
 
@@ -299,8 +304,11 @@ void ESP_WIFI::addInfo2Buffer(const char *str)
     strcpy(buffer, str);
     return;
   }
+
+  //trace("1 currBufLen="+String(strlen(buffer)) +" buffer=" + String(buffer));
   strcat(buffer, ",");
   strcat(buffer, str);
+  //trace("2 currBufLen="+String(strlen(buffer)) +" buffer=" + String(buffer));
 }
 
 //------------------------------------------------------------------------
@@ -327,8 +335,8 @@ void ESP_WIFI::addTempHum2Buffer(short id, short temp, short hum)
   len += 2 + 4 + 4 + 20;
   char loc_buf[len];
   sprintf(loc_buf, fmt, id, temp, hum, getCurrentDate(0).c_str());
-  //Serial.println(loc_buf);
   addInfo2Buffer(loc_buf);
+  
 }
 
 //------------------------------------------------------------------------
@@ -383,6 +391,7 @@ void ESP_WIFI::closeConnect()
 {
   if(wifi_initialized){
     espSendCommand(F("AT+CWQAP"), STATE::OK, 5000 );
+    delay(1000);
     wifi_initialized = false;
     esp_power_switch(false);
   }  
@@ -406,24 +415,22 @@ bool ESP_WIFI::sendError_check()
     trace_i(buffOver);
     trace_end();
   }
+  
+  //espSendCommand( F("AT+CIPSTATUS"), STATE::OK , 5000);
+  
   bool res = true;
   if(sendErrorCounter > 3)
     res = false;
   else  
-    res = espSendCommand( F("AT+PING=\"192.168.8.1\""), STATE::OK , 5000); // попытка пингануть модем    
+    res = ping(F("192.168.8.1"), 5000); // попытка пингануть модем    
     
   if(!res){
-    {
-    String str = F("AT+PING=\"");
-    str += HOST_IP_STR;
-    str += F("\"");
-    res = espSendCommand(str, STATE::OK , 15000); // попытка пингануть свой сервер
-    }
+    res = ping(HOST_IP_STR, 15000); // попытка пингануть свой сервер
     if(res){ // все наладилось
         sendErrorCounter = 0;
         return 0;
         }
-    res = espSendCommand(F("AT+PING=\"192.168.0.1\""), STATE::OK , 5000); // попытка пингануть роутер
+    res = ping(F("192.168.0.1"), 5000); // попытка пингануть роутер
     if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если роутер жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
       closeConnect(); // izh 22-05-2020 отключить от WIFI
       lastRouterReboot = millis();
@@ -433,4 +440,12 @@ bool ESP_WIFI::sendError_check()
       }
     }
   return 0;
+}
+
+bool ESP_WIFI::ping(const String &host, short timeout=5000)
+{
+  String str = F("AT+PING=\"");
+  str += host;
+  str += F("\"");
+  return espSendCommand(str, STATE::OK , timeout);
 }
