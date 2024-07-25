@@ -326,7 +326,8 @@ float readDallasTemp(DallasTemperature *d) {
     if (ft > -100) {
       break;
     }
-    dallasTemp[ii].begin();  // повторная инициализация, часто помогает
+    
+    //izh 25-07-2024 вызывает странную проблему dallasTemp[ii].begin();  // повторная инициализация, часто помогает
     delay(50);
   }
   return ft;
@@ -358,7 +359,9 @@ void temp_check() {
     } else {
       h = 0;
       int ind = i - 3;
+      //trace("0.1 currBufLen="+String(strlen(esp.buffer)) +" buffer=" + String(esp.buffer));
       t = round(readDallasTemp(&dallasTemp[ind]));
+      //trace("0.2 currBufLen="+String(strlen(esp.buffer)) +" buffer=" + String(esp.buffer));
     }
 
     trace_begin(F("Темп и влажн. id="));
@@ -727,7 +730,7 @@ void checkPump_check()  // запускается один раз в час
   if (fill_tank_time < 24 && now.hour() == fill_tank_time && d.a[8].value == 1) {  // наполнить бочку если не полная
     responseProcessing(F("command=fill_tank;30;"));
   }
-  trace("open_tap_time="+String(open_tap_time) + " now.hour=" + String(now.hour()));
+  //trace("open_tap_time="+String(open_tap_time) + " now.hour=" + String(now.hour()));
   if (open_tap_time < 24 && now.hour() == open_tap_time) {  // полить в теплице
     responseProcessing(F("command=open_tap;180;"));
   }
@@ -777,6 +780,9 @@ void setup() {
 
     get_param();
   }
+
+  //temp_check();
+  //esp.closeConnect();
 }
 
 //------------------------------------------------------------------------

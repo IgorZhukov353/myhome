@@ -8,9 +8,11 @@ enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4};
 class ESP_WIFI {
 //protected:  
   //String buffer;
-  char buffer[2048];
+  
   
  public:
+ char buffer[1800];
+ 
   bool wifi_initialized = false;
   unsigned long lastWIFISended;
   short sendErrorCounter;
@@ -46,4 +48,5 @@ class ESP_WIFI {
   bool check_Wait_Internet();
   void closeConnect();
   bool sendError_check();
+  bool ping(const String &host, short timeout=5000);
 };
