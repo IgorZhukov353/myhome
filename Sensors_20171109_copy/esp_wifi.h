@@ -1,10 +1,10 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  24-06-2020
+ Last changed:  25-07-2024
 */
 enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4};
-
+enum class ErrorType {NONE=0,HTTP_FAIL=1,TIMEOUT=2,OTHER=3};
 class ESP_WIFI {
 //protected:  
   //String buffer;
@@ -17,7 +17,9 @@ class ESP_WIFI {
   unsigned long lastWIFISended;
   short sendErrorCounter;
   short httpFailCounter;
-  short buffOver;
+  short buffOverCounter;
+  short timeoutCounter;
+  ErrorType lastErrorTypeId;
   
   short routerConnectErrorCounter;
   int routerRebootCount = 0;              // счетчик перезагрузок роутера

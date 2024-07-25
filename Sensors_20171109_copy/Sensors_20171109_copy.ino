@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  24-07-2024	-++
+  Last changed:  25-07-2024	-++
 */
-#define VERSION "Ver 1.180 of 24-07-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.181 of 25-07-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -758,6 +758,7 @@ void esp_power_switch(bool p) {
 //------------------------------------------------------------------------
 //------------------------------------------------------------------------
 void setup() {
+  wdt_disable(); // бесполезная строка до которой не доходит выполнение при bootloop
   trace(F(VERSION));
 
   Wire.begin();
@@ -834,15 +835,29 @@ void loop() {
       dopInfo += esp.sendCounter_ForAll;
       dopInfo += F(" SndKB=");
       dopInfo += esp.bytesSended / 1024;
-      dopInfo += F(" SErr=");
-      dopInfo += String(esp.sendErrorCounter_ForAll); 
-      dopInfo += F(" BOvr=");
-      dopInfo += esp.buffOver;
-      dopInfo += F(" RR=");
-      dopInfo += esp.routerRebootCount;
-      dopInfo += F("(");
-      dopInfo += ((t - esp.lastRouterReboot) / (60 * 60000));
-      dopInfo += F("h.)");
+      if(esp.sendErrorCounter_ForAll){
+        dopInfo += F(" SErr=");
+        dopInfo += esp.sendErrorCounter_ForAll; 
+      }
+      if(esp.httpFailCounter){
+        dopInfo += F(" HttpErr=");
+        dopInfo += esp.httpFailCounter;
+      }
+      if(esp.timeoutCounter){
+        dopInfo += F(" ToErr=");
+        dopInfo += esp.timeoutCounter;
+      }
+      if(esp.buffOverCounter){
+        dopInfo += F(" BOvrErr=");
+        dopInfo += esp.buffOverCounter;
+      }
+      if(esp.routerRebootCount){
+        dopInfo += F(" RR=");
+        dopInfo += esp.routerRebootCount;
+        dopInfo += F("(");
+        dopInfo += ((t - esp.lastRouterReboot) / (60 * 60000));
+        dopInfo += F("h.)");
+      }
       
       const unsigned long ticksPerDay = 86400000;  // 1000 * 60 * 60 * 24;
       const unsigned long ticksPerHour = 3600000;  //1000 * 60 * 60;
