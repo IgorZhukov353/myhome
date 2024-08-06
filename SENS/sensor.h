@@ -42,6 +42,7 @@ class TempSensor : public Sensor{
   short humValue;
 
 public:
+TempSensor(){};
 void virtual init(byte _id,_Type _type,byte _ppin,JsonObject root);
 int virtual check();
 };
@@ -74,4 +75,3 @@ int virtual actionRunFunc();
 check(byte sensorMask=0, byte actMask=0);
 load(String json);
 };
-
