@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  24-07-2024	-++
+  Last changed:  06-08-2024	-++
 */
-#define VERSION "Ver 1.180 of 24-07-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.182 of 06-08-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -67,7 +67,7 @@
 #define PIN36 36  // Датчик температуры DS18B20 (гараж овощной ящик)
 #define PIN37 37  // Датчик температуры DS18B20 (теплица)
 #define PIN38 38  // Реле 1 INT1 - клапан подачи воды в бочку полива (вкл 12v)
-#define PIN39 39  
+#define PIN39 39  // Реле одноканальное - клапан подачи воды 2 для полива
 
 #define PIN40 40  // Реле 1 INT2 - переключатель между клапаном подачи воды в бочку полива и актуатором крана воды из бочки на капельный полив
 #define PIN41 41  // Реле 2 INT1,INT2 - вкл/выкл (смена полярности питания 12v) актуатором крана воды из бочки на капельный полив
@@ -89,7 +89,7 @@
 
 //-------------------------------------------------
 //RTC_DS1307 RTC;  // часы реального времени
-ESP_WIFI esp;    // wi-fi ESP266
+ESP_WIFI esp;  // wi-fi ESP266
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 #define MAX_TEMP_SENS 8
@@ -106,9 +106,9 @@ short prevTemp[MAX_TEMP_SENS] = { -100, -100, -100, -100, -100, -100, -100, -100
 #define state_led_pin PIN13
 #define SENS_CHECK_TIMEOUT 100
 #define SENS_TIMEOUT 500
-#define TEMP_TIMEOUT (60000 * 5)      // проверка температуры и влажности раз в 5 минут
-#define WATCHDOG_TIMEOUT (60000 * 60) // дежурные пакеты
-#define COMMAND_TIMEOUT (60000 * 1)  // проверка команд для выполнения
+#define TEMP_TIMEOUT (60000 * 5)       // проверка температуры и влажности раз в 5 минут
+#define WATCHDOG_TIMEOUT (60000 * 60)  // дежурные пакеты
+#define COMMAND_TIMEOUT (60000 * 1)    // проверка команд для выполнения
 #define BOILER_TIMEOUT (60000 * 1)
 
 #define MAX_ALARMS 9
@@ -166,7 +166,7 @@ byte pump_force;                                     // =1 включить др
 byte open_tap_time = 18,                             // в это время открыть кран для полива на 120 мин, если >= 24, то не открывать
   fill_tank_time = 5,                                // в это время открыть клапан для заполнение бочки на 30 мин, если >= 24 или уровень == 0, то не открывать
   ip_ping_reboot = 1;                                // если пинги контролируемых устройств не прошли (1 раз/час), то перегрузить их
-  
+
 void blinky_check();
 void sens_check();
 void temp_check();
@@ -195,7 +195,7 @@ Activity check_fill_tank((60000), fill_tank_check);
 Activity check_open_tap((60000), open_tap_check);
 
 #define DC_12V_ON_PIN 25
-#define VALVE_ON_PIN 38           //(TEMP_PIN+1)
+#define VALVE_ON_PIN 38  //(TEMP_PIN+1)
 #define SPRINKLING_ON_PIN 39
 #define LEVEL_PIN 42              //(TEMP_PIN+2)
 #define VALVE_OR_WATERTAP_PIN 40  //PIN (TEMP_PIN+3)
@@ -212,14 +212,14 @@ class Boiler
   vegetableStorage(HVS_CMD, 31, 7, 0, 5),
   fill_tank(FILL_TANK_CMD, VALVE_ON_PIN),
   open_tap(OPEN_TAB_CMD, 0),
-  sprinkling(SPRINKLING_CMD,SPRINKLING_ON_PIN);
+  sprinkling(SPRINKLING_CMD, SPRINKLING_ON_PIN);
 
 //------------------------------------------------------------------------
 void get_param() {
-  esp.send2site("get_param.php");  // прочитать параметры
+  esp.send2site(F("get_param.php"));  // прочитать параметры
   String str = F("Checked_IP=");
   str += checked_ip;
-  str +=  F("(");
+  str += F("(");
   for (short i = 0; i < checked_ip; i++) {
     str += tcp_last_byte[i];
     str += ((i == checked_ip - 1) ? ")" : ",");
@@ -240,7 +240,7 @@ void sens_setup() {
     }
     d.a[i].pre_value = d.a[i].norm_state;
     d.a[i].value = d.a[i].norm_state;
-    
+
     trace_begin(F("Sens init! id="));
     trace_i(d.a[i].id);
     trace_s(F(" v="));
@@ -280,9 +280,9 @@ void sens_check() {
       d.a[i].value = d.a[i].pre_value;
       d.a[i].change_time = 0;
       esp.addSens2Buffer(d.a[i].id, d.a[i].value);
-      
+
       trace_begin(F("Sens changed! id="));
-      trace_i(d.a[i].id); 
+      trace_i(d.a[i].id);
       trace_s(F(" v="));
       trace_i(d.a[i].value);
       trace_end();
@@ -326,7 +326,7 @@ float readDallasTemp(DallasTemperature *d) {
     if (ft > -100) {
       break;
     }
-    
+
     //izh 25-07-2024 вызывает странную проблему dallasTemp[ii].begin();  // повторная инициализация, часто помогает
     delay(50);
   }
@@ -401,8 +401,8 @@ void timerInterrupt() {
 //------------------------------------------------------------------------
 // Обработка принятой строки
 //------------------------------------------------------------------------
-void responseProcessing(const String& response) {
-  
+void responseProcessing(const String &response) {
+
   short ind = response.indexOf(F("command="));  // признак команды
   short ind2;
 
@@ -411,9 +411,9 @@ void responseProcessing(const String& response) {
     ind2 = response.indexOf(";", ind);  // поиск первой точки-запятой
     if (ind2 >= 0) {
       String cmd = response.substring(ind, ind2);
-      { 
-        String str=F("cmd=");
-        str += cmd; 
+      {
+        String str = F("cmd=");
+        str += cmd;
         trace(str);
         esp.addEvent2Buffer(7, str);
       }
@@ -422,7 +422,7 @@ void responseProcessing(const String& response) {
         remoteRebootExecute(1);
       else if (cmd == F("reboot"))
         remoteRebootExecute(2);
-      else if (cmd == F("sensor_ignore")){
+      else if (cmd == F("sensor_ignore")) {
         d.sysState = 0;
         d.ledState = 0;
         digitalWrite(state_led_pin, d.ledState);
@@ -452,36 +452,36 @@ void responseProcessing(const String& response) {
       } else
 
         if (cmd == F("fill_tank") && !fill_tank.ControlOn && !open_tap.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
-        pinMode(DC_12V_ON_PIN, OUTPUT);         //
-        digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
+        pinMode(DC_12V_ON_PIN, OUTPUT);                                              //
+        digitalWrite(DC_12V_ON_PIN, LOW);                                            // включаем внешнее питание реле и питание для клапана (1) или крана (0)
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);        // выбираем питание для клапана (1)
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // выбираем питание для клапана (1)
         pinMode(VALVE_ON_PIN, OUTPUT);
-        digitalWrite(VALVE_ON_PIN, HIGH);                 // пока выключаем питание клапана
+        digitalWrite(VALVE_ON_PIN, HIGH);  // пока выключаем питание клапана
         fill_tank.init(response, ind2, 1);
-        check_fill_tank.timeout = 2000; // сделать вызов процедуры обработки раз в 2 сек
-      } else 
-      
+        check_fill_tank.timeout = 2000;  // сделать вызов процедуры обработки раз в 2 сек
+      } else
+
         if (cmd == F("open_tap") && !open_tap.ControlOn && !fill_tank.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
-        pinMode(DC_12V_ON_PIN, OUTPUT);         
-        digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
+        pinMode(DC_12V_ON_PIN, OUTPUT);
+        digitalWrite(DC_12V_ON_PIN, LOW);  // включаем внешнее питание реле и питание для клапана (1) или крана (0)
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);        // пока выбираем питание для клапана (1) (выключаем питание крана)
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // пока выбираем питание для клапана (1) (выключаем питание крана)
         pinMode(WATERTAP_ON_PIN, OUTPUT);
-        digitalWrite(WATERTAP_ON_PIN, HIGH);              // пока ставим в положение закрыто (+12В-12В)
+        digitalWrite(WATERTAP_ON_PIN, HIGH);  // пока ставим в положение закрыто (+12В-12В)
         open_tap.init(response, ind2, 1);
-        check_open_tap.timeout = 10000; // сделать вызов процедуры обработки раз в 10 сек
-        } else
+        check_open_tap.timeout = 10000;  // сделать вызов процедуры обработки раз в 10 сек
+      } else
 
         if (cmd == F("sprinkling") && !sprinkling.ControlOn) {  // izh 17-06-2024 это реле работает от внешнего питания, которое подается при включении  12В DC_12V_ON_PIN
-        pinMode(DC_12V_ON_PIN, OUTPUT);         //
-        digitalWrite(DC_12V_ON_PIN, LOW);                 // включаем внешнее питание реле и питание для клапана (1) или крана (0)
+        pinMode(DC_12V_ON_PIN, OUTPUT);                         //
+        digitalWrite(DC_12V_ON_PIN, LOW);                       // включаем внешнее питание реле и питание для клапана (1) или крана (0)
         pinMode(VALVE_OR_WATERTAP_PIN, OUTPUT);
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);        // выбираем питание для клапана (1)
+        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // выбираем питание для клапана (1)
         pinMode(SPRINKLING_ON_PIN, OUTPUT);
-        digitalWrite(SPRINKLING_ON_PIN, HIGH);                 // пока выключаем питание клапана
+        digitalWrite(SPRINKLING_ON_PIN, HIGH);  // пока выключаем питание клапана
         sprinkling.init(response, ind2, 1);
-      
+
       } else if (cmd == F("fill_tank_stop")) {
         if (fill_tank.ControlOn)
           fill_tank.ControlUntilTime = 0;
@@ -504,7 +504,7 @@ void responseProcessing(const String& response) {
         DateTime dt1(RTC.now());
         DateTime dt2(date_str.c_str(), time_str.c_str());
         {
-          String str =F("TimeCheckCorr:");
+          String str = F("TimeCheckCorr:");
           str += date_str + " " + time_str;
           trace(str);
           esp.addEvent2Buffer(12, str);
@@ -554,7 +554,7 @@ void responseProcessing(const String& response) {
           fill_tank_time = ParamValue.toInt();
         } else if (ParamName == F("open_tap_time")) {
           open_tap_time = ParamValue.toInt();
-        }else if (ParamName == F("ip_ping_reboot")) {
+        } else if (ParamName == F("ip_ping_reboot")) {
           ip_ping_reboot = ParamValue.toInt();
         }
       }
@@ -567,26 +567,26 @@ void responseProcessing(const String& response) {
 void fill_tank_check()  // запускается один раз в 2 сек, когда работает команда
 {
   if (fill_tank.ControlOn) {
-    if(millis() - fill_tank.putInfoLastTime > 60000){
+    if (millis() - fill_tank.putInfoLastTime > 60000) {
       trace_begin(F("fill_tank_check level="));
       trace_i(d.a[8].value);
       trace_end();
     }
     fill_tank.processing();
-    if (fill_tank.ControlOn == 0) { // закончили работу
-        check_fill_tank.timeout = 60000;
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // все в исходное состояние
-        digitalWrite(DC_12V_ON_PIN, HIGH);
-        pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
-        pinMode(DC_12V_ON_PIN, INPUT);
-        fill_tank.pin2 == 0;
+    if (fill_tank.ControlOn == 0) {  // закончили работу
+      check_fill_tank.timeout = 60000;
+      digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // все в исходное состояние
+      digitalWrite(DC_12V_ON_PIN, HIGH);
+      pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
+      pinMode(DC_12V_ON_PIN, INPUT);
+      fill_tank.pin2 == 0;
     } else {  // в работе
-     
-      if (d.a[8].value == 0) {  // бак полон
-        if( fill_tank.pin2 == -1) // это не первый всплеск
+
+      if (d.a[8].value == 0) {     // бак полон
+        if (fill_tank.pin2 == -1)  // это не первый всплеск
           responseProcessing(F("command=fill_tank_stop;"));
-         else
-          fill_tank.pin2 = -1; // компенсировать первый всплеск
+        else
+          fill_tank.pin2 = -1;  // компенсировать первый всплеск
       }
     }
   }
@@ -597,46 +597,48 @@ void open_tap_check()  // запускается один раз в 20 сек, �
 {
   if (open_tap.ControlOn) {
     bool saved = open_tap.CurrentMode;  // текущий режим, если == false, значит начало работы
-    if(millis() - open_tap.putInfoLastTime > 60000){
+    if (millis() - open_tap.putInfoLastTime > 60000) {
       trace_begin(F("open_tap=3 mode="));
       trace_i(open_tap.pin2);
     }
     open_tap.processing();
-    if (open_tap.ControlOn == 0) {      // конец полива
-      if (open_tap.pin2 == -1 || open_tap.pin2 == -2) {        // кран еще не закрыт, нужно закрыть
-        trace("open_tap=4 mode="+ String(open_tap.pin2));
-        digitalWrite(DC_12V_ON_PIN, LOW);         // подаем питание 12В на реле и кран/клапан
-        digitalWrite(WATERTAP_ON_PIN, HIGH);      // меняем полярность на закрытие крана
-        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW); // переключаем питание с клапана на кран
-        
-        open_tap.ControlOn = true;    // включаем команду
-        open_tap.CurrentMode = true; // возвращаем команду в активный режем
+    if (open_tap.ControlOn == 0) {                       // конец полива
+      if (open_tap.pin2 == -1 || open_tap.pin2 == -2) {  // кран еще не закрыт, нужно закрыть
+        trace_begin(F("open_tap=4 mode="));
+        trace_i(open_tap.pin2);
+        digitalWrite(DC_12V_ON_PIN, LOW);          // подаем питание 12В на реле и кран/клапан
+        digitalWrite(WATERTAP_ON_PIN, HIGH);       // меняем полярность на закрытие крана
+        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);  // переключаем питание с клапана на кран
+
+        open_tap.ControlOn = true;                     // включаем команду
+        open_tap.CurrentMode = true;                   // возвращаем команду в активный режем
+        open_tap.tmpWorkTime = millis();               // начало активного периода 
         open_tap.ControlUntilTime = millis() + 20000;  // продляем еще работу на 20 сек чтобы кран успел закрыться
-        open_tap.pin2 = 0;  // теперь точно конец работы команды
-      } else {  // теперь точно все
+        open_tap.pin2 = 0;                             // теперь точно конец работы команды
+      } else {                                         // теперь точно все
         trace(F("open_tap=5"));
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // выключаем реле переключаем питание с крана на клапан
-        digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности 
+        digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности
         digitalWrite(DC_12V_ON_PIN, HIGH);          // выключаем реле подачи питание 12В на реле и кран/клапан
 
         pinMode(DC_12V_ON_PIN, INPUT);
         pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
         pinMode(WATERTAP_ON_PIN, INPUT);
         check_open_tap.timeout = 60000;
-        }
+      }
     } else {
       if (!saved && open_tap.CurrentMode) {  // начало работы полива, первый проход
         trace(F("open_tap=1"));
-        digitalWrite(WATERTAP_ON_PIN, LOW);         // переключаем полярность на открывание крана (-12В+12В)
-        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);   // переключаем питание с клапана на кран
-        open_tap.pin2 = -1;                         // кран открывается 5-10 секунд, после этого питание крана и реле можно отключить до момента закрытия крана после полива, выставляем признак на снятие питания
-      }
-      else if (open_tap.pin2 == -1){
+        digitalWrite(WATERTAP_ON_PIN, LOW);        // переключаем полярность на открывание крана (-12В+12В)
+        digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);  // переключаем питание с клапана на кран
+        open_tap.pin2 = -1;                        // кран открывается ~5-10 секунд, после этого питание крана и реле можно отключить до момента закрытия крана после полива, выставляем признак на снятие питания
+      } else if (open_tap.pin2 == -1) {
         trace(F("open_tap=2"));
         digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // кран наверное уже открылся, переключаем питание с крана на клапан
-        digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности 
+        digitalWrite(WATERTAP_ON_PIN, HIGH);        // выключаем реле смены полярности
         digitalWrite(DC_12V_ON_PIN, HIGH);          // отключаем питание 12В
         open_tap.pin2 = -2;                         // признак закрытия крана по окончанию полива
+        open_tap.CurrentMode = false;               // переводим команду в холостой режем 
       }
     }
   }
@@ -691,13 +693,13 @@ void remoteTermostat_check() {
     heating_cable.processing();
   if (vegetableStorage.ControlOn)
     vegetableStorage.processing();
-  if (sprinkling.ControlOn){
+  if (sprinkling.ControlOn) {
     sprinkling.processing();
-    if (sprinkling.ControlOn == 0) { // закончили работу
-        digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // все в исходное состояние
-        digitalWrite(DC_12V_ON_PIN, HIGH);
-        pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
-        pinMode(DC_12V_ON_PIN, INPUT);
+    if (sprinkling.ControlOn == 0) {              // закончили работу
+      digitalWrite(VALVE_OR_WATERTAP_PIN, HIGH);  // все в исходное состояние
+      digitalWrite(DC_12V_ON_PIN, HIGH);
+      pinMode(VALVE_OR_WATERTAP_PIN, INPUT);
+      pinMode(DC_12V_ON_PIN, INPUT);
     }
   }
 }
@@ -739,7 +741,7 @@ void checkPump_check()  // запускается один раз в час
     esp.send2site(F("get_date.php"));  // в 00 часа взять дату-время с сервера и если локальные часы не совпадают, то установить их по серверу
   }
   if (now.hour() == 1) {
-    get_param();                    // прочитать параметры
+    get_param();  // прочитать параметры
   }
 }
 
@@ -758,6 +760,7 @@ void esp_power_switch(bool p) {
 //------------------------------------------------------------------------
 //------------------------------------------------------------------------
 void setup() {
+  wdt_disable();  // бесполезная строка до которой не доходит выполнение при bootloop
   trace(F(VERSION));
 
   Wire.begin();
@@ -773,7 +776,7 @@ void setup() {
     dallasTemp[i].begin();
   }
 
-  if(esp.check_Wait_Internet()){
+  if (esp.check_Wait_Internet()) {
 
     esp.addEvent2Buffer(1, "");
     esp.sendBuffer2Site();
@@ -812,38 +815,52 @@ void loop() {
       dopInfo.reserve(255);
       dopInfo = "";
       for (ind = 0; ind < checked_ip; ind++) {  // пинги видеорегистратора и камер
-        if (tcp_last_byte[ind]){ 
+        if (tcp_last_byte[ind]) {
           String cmd = F("AT+PING=\"192.168.0.");
           cmd += tcp_last_byte[ind];
           cmd += F("\"");
-          if(!esp.espSendCommand(cmd, STATE::OK, 5000)) {
+          if (!esp.espSendCommand(cmd, STATE::OK, 5000)) {
             if (dopInfo != "")
               dopInfo += ",";
             dopInfo += tcp_last_byte[ind];
           }
         }
       }
-      if (dopInfo != ""){
+      if (dopInfo != "") {
         dopInfo = String(F("PingErr:")) + dopInfo + " ";
-        if(ip_ping_reboot == 1)
+        if (ip_ping_reboot == 1)
           responseProcessing(F("command=reboot;"));
       }
       dopInfo += F("M=");
-      dopInfo += (floor((((float)ramMemory/1024))*100)/100);
-      dopInfo += F(" Snd="); 
+      dopInfo += (floor((((float)ramMemory / 1024)) * 100) / 100);
+      dopInfo += F(" Snd=");
       dopInfo += esp.sendCounter_ForAll;
       dopInfo += F(" SndKB=");
       dopInfo += esp.bytesSended / 1024;
-      dopInfo += F(" SErr=");
-      dopInfo += String(esp.sendErrorCounter_ForAll); 
-      dopInfo += F(" BOvr=");
-      dopInfo += esp.buffOver;
-      dopInfo += F(" RR=");
-      dopInfo += esp.routerRebootCount;
-      dopInfo += F("(");
-      dopInfo += ((t - esp.lastRouterReboot) / (60 * 60000));
-      dopInfo += F("h.)");
-      
+      if (esp.sendErrorCounter_ForAll) {
+        dopInfo += F(" SErr=");
+        dopInfo += esp.sendErrorCounter_ForAll;
+      }
+      if (esp.httpFailCounter) {
+        dopInfo += F(" HttpErr=");
+        dopInfo += esp.httpFailCounter;
+      }
+      if (esp.timeoutCounter) {
+        dopInfo += F(" ToErr=");
+        dopInfo += esp.timeoutCounter;
+      }
+      if (esp.buffOverCounter) {
+        dopInfo += F(" BOvrErr=");
+        dopInfo += esp.buffOverCounter;
+      }
+      if (esp.routerRebootCount) {
+        dopInfo += F(" RR=");
+        dopInfo += esp.routerRebootCount;
+        dopInfo += F("(");
+        dopInfo += ((t - esp.lastRouterReboot) / (60 * 60000));
+        dopInfo += F("h.)");
+      }
+
       const unsigned long ticksPerDay = 86400000;  // 1000 * 60 * 60 * 24;
       const unsigned long ticksPerHour = 3600000;  //1000 * 60 * 60;
 
@@ -858,10 +875,10 @@ void loop() {
       unsigned int h = ((t % ticksPerDay + timerResetOstatok) % ticksPerDay) / ticksPerHour;
 
       lastWatchDogOK_Sended2BD = (t == 0) ? 1 : t;
-      String str =F("T=");
-      if(d > 0){
-          str += d;
-          str += F("d.");
+      String str = F("T=");
+      if (d > 0) {
+        str += d;
+        str += F("d.");
       }
       str += h;
       str += F("h. (");

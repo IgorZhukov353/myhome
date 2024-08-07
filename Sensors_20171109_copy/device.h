@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       21-11-2023
- Last changed:  24-07-2024
+ Last changed:  06-08-2024
 */
 // id команд в таблице COMMAND
 #define BOILER_CMD      1
@@ -45,7 +45,7 @@ class Boiler : public DeviceControl {
     short delta;                      // выключать при температуре (TargetTemp + delta)
     bool  CurrentMode;                // текущий режим ардуино-термостата
     unsigned long putInfoLastTime;    // время отправки инфо (1 раз в мин)
-    
+//-------------------------------------------------------------------------------------------------------------------------    
     Boiler(byte _id,short ppin, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0): DeviceControl(ppin)  {
       id = _id;
       pin2 = ppin2;
@@ -53,6 +53,7 @@ class Boiler : public DeviceControl {
       delta = pdelta;
       TargetTemp = 0;
     };
+//-------------------------------------------------------------------------------------------------------------------------
     void init(const String& response, short ind2, short parInHours=0)
     {
       trace_begin(F("Dev id="));
@@ -97,7 +98,9 @@ class Boiler : public DeviceControl {
         digitalWrite(pin2, LOW); // включено (отключаем штатный термостат)
       }
       totalWorkTime = millis();
+      activeWorkCount = activeWorkTime = 0;
     };
+//-------------------------------------------------------------------------------------------------------------------------    
     void processing()
     {
       if (millis() > ControlUntilTime) { // закончен период работы ардуино-термостата
@@ -143,6 +146,7 @@ class Boiler : public DeviceControl {
         putInfoLastTime = millis();
       }
     };
+//-------------------------------------------------------------------------------------------------------------------------    
     void putInfo()
     {
       String str;
@@ -151,7 +155,7 @@ class Boiler : public DeviceControl {
       str = F("{\"id\":\"");
       str += id;
       str +=  F("\",\"l\":");
-      str +=  (ControlOn) ? ControlUntilTime - millis() : 0;
+      str +=  (ControlOn) ? (ControlUntilTime - millis())/1000 : 0;
       str +=  F(",\"cnt\":");
       str +=  (activeWorkCount);
       str +=  F(",\"w\":");
@@ -159,9 +163,9 @@ class Boiler : public DeviceControl {
       str +=  F(",\"a\":");
       str +=  CurrentMode;
       str +=  F(",\"actt\":");
-      str +=  activeWorkTime + ((CurrentMode) ? millis() - tmpWorkTime : 0);
+      str +=  activeWorkTime + ((CurrentMode) ? (millis() - tmpWorkTime)/1000 : 0);
       str +=  F(",\"ont\":");
-      str +=  (millis() - totalWorkTime);
+      str +=  (millis() - totalWorkTime)/1000;
       if(tempSensorId > 0){
         str += F(",\"t\":"); 
         str += (TargetTemp);

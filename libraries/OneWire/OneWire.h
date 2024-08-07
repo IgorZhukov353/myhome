@@ -69,6 +69,7 @@ class OneWire
 #endif
 
   public:
+    OneWire(){}; // izh 2-08-2024
     OneWire(uint8_t pin) { begin(pin); }
     void begin(uint8_t pin);
 

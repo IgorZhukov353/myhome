@@ -5,6 +5,7 @@
 */
 
 #include "Arduino.h"
+#include <avr/wdt.h>
 #include "util.h"
 #include "esp_wifi.h"
 
@@ -41,26 +42,23 @@ const char *HOST_IP_STR = "81.90.182.128";
 #define ESP_Serial Serial1 // для МЕГИ
 
 //------------------------------------------------------------------------
-ESP_WIFI::ESP_WIFI()
-{
+ESP_WIFI::ESP_WIFI() {
 wifi_initialized = false;
 sendErrorCounter = 0;
 }
 
 //------------------------------------------------------------------------
 // выполнить команду на удаленном сервере (через wi-fi)
-bool ESP_WIFI::send2site(const String& reqStr) 
-{
+bool ESP_WIFI::send2site(const String &reqStr) {
   return _send2site(reqStr, NULL);
 }
 //------------------------------------------------------------------------
 // выполнить команду на удаленном сервере (через wi-fi)
-bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
-{
+bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
   if (!checkInitialized()) {
     return false;
   }
-  short postBufLen = (postBuf) ? strlen(postBuf) + 6 : 0;
+  short postBufLen = (postBuf) ? strlen(postBuf) + 6 : 0;  // + 6 ->str =[...]
   bool r;
   {
     String cmd1;
@@ -84,8 +82,7 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
       request += HOST_STR;
       request += F("\r\nConnection: close\r\n");
       requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
-    }
-    else {
+    } else {
       request = F("POST /");
       request += reqStr;
       request += F(" HTTP/1.1\r\nHost: ");
@@ -109,21 +106,21 @@ bool ESP_WIFI::_send2site(const String& reqStr, const char * postBuf)
     }
     r = espSendCommand( request, STATE::CLOSED, 15000, postBuf, request2);    // отослать запрос и получить ответ
   }
-  if (!r) {
+  if (!r && lastErrorTypeId >= ErrorType::TIMEOUT) {
     sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
     sendErrorCounter_ForAll++;
-  }
-  else
+  } else {
     sendErrorCounter = 0;
+    lastWIFISended = millis();  // время последней успешной отправки на сервер
+  }
 
   sendCounter_ForAll++;
-  lastWIFISended = millis();
+
   return r;
 }
 
 //------------------------------------------------------------------------
-bool ESP_WIFI::espSerialSetup() 
-{
+bool ESP_WIFI::espSerialSetup() {
 bool r;
 esp_power_switch(true);
 delay(200);
@@ -149,8 +146,7 @@ r = espSendCommand( F("AT+CWMODE=1"), STATE::OK, 5000 );
 }
 if(!r){
   routerConnectErrorCounter++; 
-}
-else{
+  } else {
   routerConnectErrorCounter = 0;
   r = espSendCommand( F("AT+CIFSR"), STATE::OK, 5000 );
 }
@@ -163,9 +159,8 @@ return r;
 static const char *state_str[STATE_STR_MAX] = {"OK", "ERROR", "HTTP/1.1", "200 OK", "CLOSED"};
 static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6};
 
-bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout, const char *postBuf, const String &cmd2)
+bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const unsigned long timeout, const char *postBuf, const String &cmd2) {
 {
-  {
     trace_begin(F("espSendCommand(\""));
     trace_s(cmd);
     if(postBuf){
@@ -186,8 +181,7 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
     ESP_Serial.print(cmd);
     ESP_Serial.print(postBuf);
     ESP_Serial.println(cmd2);
-  }
-  else
+  } else
     ESP_Serial.println(cmd);
     
   if(maxSendedMSG < msglen)
@@ -239,16 +233,18 @@ bool ESP_WIFI::espSendCommand(const String& cmd, const STATE goodResponse, const
 		if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
 		  httpFail = true;
 		  httpFailCounter++;
-		}
-		else 
+        lastErrorTypeId = ErrorType::HTTP_FAIL;
+      } else
 		  httpFail = false;
 		  
 		result = (state_str_on[(byte)STATE::ERR] || httpFail) ? false : true;
     trace_s((result) ? F("SUCCESS") : F("ERROR"));
-	  }
-	  else {
+      lastErrorTypeId = (result) ? ErrorType::NONE : ErrorType::OTHER;
+    } else {
 		result = false;
     trace_s(F("ERROR - Timeout"));
+      timeoutCounter++;
+      lastErrorTypeId = ErrorType::TIMEOUT;
 	  }
     trace_s(F(" - Response time: " ));
     trace_l(millis() - tstart);
@@ -277,8 +273,7 @@ void ESP_WIFI::checkIdle() // отключение в случае просто�
 }
 
 //------------------------------------------------------------------------
-bool ESP_WIFI::checkInitialized()
-{
+bool ESP_WIFI::checkInitialized() {
   if(!wifi_initialized){
     wifi_initialized = espSerialSetup();
   }
@@ -286,13 +281,12 @@ bool ESP_WIFI::checkInitialized()
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::addInfo2Buffer(const char *str)
-{
+void ESP_WIFI::addInfo2Buffer(const char *str) {
   short currBufLen = strlen(buffer);
   short strLen = strlen(str);
 
   if (strLen > sizeof(buffer)) {
-    buffOver++;
+    buffOverCounter++;
     return;
   }
   if (!currBufLen) {
@@ -300,11 +294,10 @@ void ESP_WIFI::addInfo2Buffer(const char *str)
     return;
   }
   if (currBufLen + strLen + 1 > sizeof(buffer)) {
-    buffOver++;
+    buffOverCounter++;
     strcpy(buffer, str);
     return;
   }
-
   //trace("1 currBufLen="+String(strlen(buffer)) +" buffer=" + String(buffer));
   strcat(buffer, ",");
   strcat(buffer, str);
@@ -312,22 +305,18 @@ void ESP_WIFI::addInfo2Buffer(const char *str)
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::addEvent2Buffer(short id, const String& msgText)
-{
-  char *pfmt = (msgText[0] == '{') ? PSTR("{\"type\":\"E\",\"id\":%d,\"text\":%s,\"date\":\"%s\"}") :
-               PSTR("{\"type\":\"E\",\"id\":%d,\"text\":\"%s\",\"date\":\"%s\"}");
+void ESP_WIFI::addEvent2Buffer(short id, const String &msgText) {
+  char *pfmt = (msgText[0] == '{') ? PSTR("{\"type\":\"E\",\"id\":%d,\"text\":%s,\"date\":\"%s\"}") : PSTR("{\"type\":\"E\",\"id\":%d,\"text\":\"%s\",\"date\":\"%s\"}");
   short len = strlen_P(pfmt) + 1;
   char fmt[len];
   strcpy_P(fmt, pfmt);
   len += 2 + msgText.length() + 20;
   char loc_buf[len];
   sprintf(loc_buf, fmt, id, msgText.c_str(), getCurrentDate(0).c_str());
-  //Serial.println(loc_buf);
   addInfo2Buffer(loc_buf);
 }
 //------------------------------------------------------------------------
-void ESP_WIFI::addTempHum2Buffer(short id, short temp, short hum)
-{
+void ESP_WIFI::addTempHum2Buffer(short id, short temp, short hum) {
   char *pfmt = PSTR("{\"type\":\"T\",\"id\":%d,\"temp\":%d,\"hum\":%d,\"date\":\"%s\"}");
   short len = strlen_P(pfmt) + 1;
   char fmt[len];
@@ -336,12 +325,10 @@ void ESP_WIFI::addTempHum2Buffer(short id, short temp, short hum)
   char loc_buf[len];
   sprintf(loc_buf, fmt, id, temp, hum, getCurrentDate(0).c_str());
   addInfo2Buffer(loc_buf);
-  
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::addSens2Buffer(short id, short val)
-{
+void ESP_WIFI::addSens2Buffer(short id, short val) {
   char *pfmt = PSTR("{\"type\":\"S\",\"id\":%d,\"v\":%d,\"date\":\"%s\"}");
   short len = strlen_P(pfmt) + 1;
   char fmt[len];
@@ -349,14 +336,11 @@ void ESP_WIFI::addSens2Buffer(short id, short val)
   len += 2 + 1 + 20;
   char loc_buf[len];
   sprintf(loc_buf, fmt, id, val, getCurrentDate(0).c_str());
-  //Serial.println(loc_buf);
   addInfo2Buffer(loc_buf);
-
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::sendBuffer2Site()
-{
+void ESP_WIFI::sendBuffer2Site() {
   if (strlen(buffer) == 0)
     return;
   if (_send2site(F("upd/send_info.php"), buffer))
@@ -364,31 +348,26 @@ void ESP_WIFI::sendBuffer2Site()
 }
 
 //------------------------------------------------------------------------
-bool ESP_WIFI::check_Wait_Internet()
-{
+bool ESP_WIFI::check_Wait_Internet() {
    if(!checkInitialized())
     return 0;
-   bool result = false;
+  bool res = false;
    trace(F("check_Wait_Internet ...")); 
    unsigned long tstart, tnow, timeout = 1000L * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
    tnow = tstart = millis();
    while(tnow < tstart + timeout ){
-    String str = F("AT+PING=\"");
-    str += HOST_IP_STR;
-    str += F("\"");
-    result = espSendCommand(str, STATE::OK , 15000); // попытка пингануть свой сервер
-    if(result){
+    res = ping(HOST_IP_STR, 15000);  // попытка пингануть свой сервер
+    if (res) {
       break;
     }
     tnow = millis();
     delay(10000);
     }
-    return result;
+  return res;
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::closeConnect()
-{
+void ESP_WIFI::closeConnect() {
   if(wifi_initialized){
     espSendCommand(F("AT+CWQAP"), STATE::OK, 5000 );
     delay(1000);
@@ -398,24 +377,30 @@ void ESP_WIFI::closeConnect()
 }
 
 //------------------------------------------------------------------------
-bool ESP_WIFI::sendError_check()
+bool ESP_WIFI::sendError_check() {
 {
-  {
-    trace_begin( F(" SErr="));
+    trace_begin(F("MEM="));
+    trace_i(checkMemoryFree());
+    trace_s(F(" MaxMsgLen="));
+    trace_i(maxSendedMSG);
+    trace_s(F(" LastSendErr="));
+    trace_i((byte)lastErrorTypeId);
+    trace_s(F(" SErr="));
     trace_i(sendErrorCounter);
     trace_s(F(" RCErr="));
     trace_i(routerConnectErrorCounter);
-    trace_s(F(" httpErr="));
+    trace_s(F(" HttpErr="));
     trace_i(httpFailCounter);
-    trace_s(F(" MsgLen="));
-    trace_i(maxSendedMSG);
-    trace_s(F(" mem="));
-    trace_i(checkMemoryFree());
-    trace_s(F(" bufOver="));
-    trace_i(buffOver);
+    trace_s(F(" BufOvrErr="));
+    trace_i(buffOverCounter);
+    trace_s(F(" TOutErr="));
+    trace_i(timeoutCounter);
+
+
     trace_end();
   }
   
+
   //espSendCommand( F("AT+CIPSTATUS"), STATE::OK , 5000);
   
   bool res = true;
@@ -431,6 +416,11 @@ bool ESP_WIFI::sendError_check()
         return 0;
         }
     res = ping(F("192.168.0.1"), 5000); // попытка пингануть роутер
+    if (!res && lastErrorTypeId == ErrorType::TIMEOUT && lastRouterReboot > lastWIFISended) {  // роутер не отвечает по таймауту и  последнее успешное  отправление было до перезагрузки роутера -> перегрузить МЕГУ
+      wdt_enable(WDTO_8S);                                                                     // Для тестов не рекомендуется устанавливать значение менее 8 сек
+      delay(10000);
+      return 0;
+    }
     if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если роутер жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
       closeConnect(); // izh 22-05-2020 отключить от WIFI
       lastRouterReboot = millis();
@@ -442,8 +432,7 @@ bool ESP_WIFI::sendError_check()
   return 0;
 }
 
-bool ESP_WIFI::ping(const String &host, short timeout=5000)
-{
+bool ESP_WIFI::ping(const String &host, short timeout = 5000) {
   String str = F("AT+PING=\"");
   str += host;
   str += F("\"");
