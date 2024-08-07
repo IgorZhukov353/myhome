@@ -19,7 +19,7 @@
 class DeviceControl {
   public:
     byte id;
-    byte pin;
+    short pin;
 //    String name;
     bool ControlOn;                         // признак управления
     unsigned long ControlUntilTime;         // управлять до этого времени
@@ -38,7 +38,7 @@ class DeviceControl {
 
 class Boiler : public DeviceControl {
   public:
-    byte pin2;
+    short pin2;
     byte tempSensorId;                // номер датчика температуры
     short TargetTemp;                 // целевая температура
     float currTemp;                   // текущая температура
