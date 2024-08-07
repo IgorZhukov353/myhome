@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  06-08-2024	-++
+  Last changed:  07-08-2024	-++
 */
-#define VERSION "Ver 1.182 of 06-08-2024 Igor Zhukov (C)"
+#define VERSION "Ver 1.182 of 07-08-2024 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -211,7 +211,7 @@ class Boiler
   heating_cable(HEAT_CABLE_CMD, 27, 4),
   vegetableStorage(HVS_CMD, 31, 7, 0, 5),
   fill_tank(FILL_TANK_CMD, VALVE_ON_PIN),
-  open_tap(OPEN_TAB_CMD, 0),
+  open_tap(OPEN_TAB_CMD, 0, 0, 0, 0),
   sprinkling(SPRINKLING_CMD, SPRINKLING_ON_PIN);
 
 //------------------------------------------------------------------------
@@ -600,12 +600,15 @@ void open_tap_check()  // запускается один раз в 20 сек, �
     if (millis() - open_tap.putInfoLastTime > 60000) {
       trace_begin(F("open_tap=3 mode="));
       trace_i(open_tap.pin2);
+      trace_end();
     }
     open_tap.processing();
+    
     if (open_tap.ControlOn == 0) {                       // конец полива
       if (open_tap.pin2 == -1 || open_tap.pin2 == -2) {  // кран еще не закрыт, нужно закрыть
         trace_begin(F("open_tap=4 mode="));
         trace_i(open_tap.pin2);
+        trace_end();
         digitalWrite(DC_12V_ON_PIN, LOW);          // подаем питание 12В на реле и кран/клапан
         digitalWrite(WATERTAP_ON_PIN, HIGH);       // меняем полярность на закрытие крана
         digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);  // переключаем питание с клапана на кран
@@ -627,7 +630,7 @@ void open_tap_check()  // запускается один раз в 20 сек, �
         check_open_tap.timeout = 60000;
       }
     } else {
-      if (!saved && open_tap.CurrentMode) {  // начало работы полива, первый проход
+      if (!saved && open_tap.CurrentMode) {        // начало работы полива, первый проход
         trace(F("open_tap=1"));
         digitalWrite(WATERTAP_ON_PIN, LOW);        // переключаем полярность на открывание крана (-12В+12В)
         digitalWrite(VALVE_OR_WATERTAP_PIN, LOW);  // переключаем питание с клапана на кран
@@ -639,6 +642,8 @@ void open_tap_check()  // запускается один раз в 20 сек, �
         digitalWrite(DC_12V_ON_PIN, HIGH);          // отключаем питание 12В
         open_tap.pin2 = -2;                         // признак закрытия крана по окончанию полива
         open_tap.CurrentMode = false;               // переводим команду в холостой режем 
+        open_tap.activeWorkTime += millis() - open_tap.tmpWorkTime;
+        open_tap.TargetTemp = -200;                 // что бы не вошли в активный режим
       }
     }
   }

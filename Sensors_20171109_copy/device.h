@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       21-11-2023
- Last changed:  06-08-2024
+ Last changed:  07-08-2024
 */
 // id команд в таблице COMMAND
 #define BOILER_CMD      1
@@ -19,13 +19,13 @@
 class DeviceControl {
   public:
     byte id;
-    short pin;
+    byte pin;
 //    String name;
     bool ControlOn;                         // признак управления
     unsigned long ControlUntilTime;         // управлять до этого времени
     unsigned long totalWorkTime;            // общее время работы
     unsigned long activeWorkTime;           // активное время работы
-    long activeWorkCount;                   // кол-во включений за время работы
+    unsigned short activeWorkCount;         // кол-во включений за время работы
     unsigned long tmpWorkTime;              // для вычисления активного время работы
 
     DeviceControl(short ppin) {
@@ -38,20 +38,24 @@ class DeviceControl {
 
 class Boiler : public DeviceControl {
   public:
-    short pin2;
-    short tempSensorId;               // номер датчика температуры
+    byte pin2;
+    byte tempSensorId;                // номер датчика температуры
     short TargetTemp;                 // целевая температура
     float currTemp;                   // текущая температура
     short delta;                      // выключать при температуре (TargetTemp + delta)
     bool  CurrentMode;                // текущий режим ардуино-термостата
     unsigned long putInfoLastTime;    // время отправки инфо (1 раз в мин)
+    //byte onValuePin2;                 
+    //short (*dopProcessingFunc)(Boiler *);  // указатель на процедуру, которую выполнять
 //-------------------------------------------------------------------------------------------------------------------------    
-    Boiler(byte _id,short ppin, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0): DeviceControl(ppin)  {
+    Boiler(byte _id,short ppin, short ptempSensorId = 0, short ppin2 = 0, short pdelta = 0) //,short (*p_dopProcessingFunc)(Boiler *)=NULL)
+    : DeviceControl(ppin)  {
       id = _id;
       pin2 = ppin2;
       tempSensorId = ptempSensorId;
       delta = pdelta;
       TargetTemp = 0;
+      //dopProcessingFunc = p_dopProcessingFunc;
     };
 //-------------------------------------------------------------------------------------------------------------------------
     void init(const String& response, short ind2, short parInHours=0)
@@ -163,7 +167,7 @@ class Boiler : public DeviceControl {
       str +=  F(",\"a\":");
       str +=  CurrentMode;
       str +=  F(",\"actt\":");
-      str +=  activeWorkTime + ((CurrentMode) ? (millis() - tmpWorkTime)/1000 : 0);
+      str +=  (activeWorkTime + ((CurrentMode) ? (millis() - tmpWorkTime) : 0))/1000;
       str +=  F(",\"ont\":");
       str +=  (millis() - totalWorkTime)/1000;
       if(tempSensorId > 0){
