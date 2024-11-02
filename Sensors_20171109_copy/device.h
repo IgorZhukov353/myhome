@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       21-11-2023
- Last changed:  07-08-2024
+ Last changed:  02-11-2024
 */
 // id команд в таблице COMMAND
 #define BOILER_CMD      1
@@ -41,7 +41,7 @@ class Boiler : public DeviceControl {
     short pin2;
     byte tempSensorId;                // номер датчика температуры
     short TargetTemp;                 // целевая температура
-    float currTemp;                   // текущая температура
+    short currTemp;                   // текущая температура
     short delta;                      // выключать при температуре (TargetTemp + delta)
     bool  CurrentMode;                // текущий режим ардуино-термостата
     unsigned long putInfoLastTime;    // время отправки инфо (1 раз в мин)
@@ -63,21 +63,25 @@ class Boiler : public DeviceControl {
       trace_begin(F("Dev id="));
       trace_i(id);
       trace_s(F(" init."));
+      trace_end();
       
       putInfoLastTime = 0;
-      //trace("2 response=" + response.substring(ind2, response.length()));
+      //trace("2 response=" + response);//.substring(ind2));
       
       short inHours;  // коэфициент время работы для насоса в минутах, для остальных в часах
       short ind;
       if ( id != PUMP_CMD && parInHours == 0) {  // у насоса нет целевой температуры
         ind2++;
         ind = response.indexOf(";", ind2);
+        
         TargetTemp = response.substring(ind2, ind).toInt();
+        //trace(response.substring(ind2, ind) + "===" + String(ind2)+ "===" + String(ind)+ "===" + String(TargetTemp));
         inHours = 60;       // коэфициент время работы для насоса в часах
       }
       else {
         ind = ind2;
         inHours = 1;      // коэфициент время работы для насоса в минутах
+        TargetTemp = 0;
       }
       ind++;
       ind2 = response.indexOf(";", ind);
@@ -172,7 +176,7 @@ class Boiler : public DeviceControl {
       str +=  (millis() - totalWorkTime)/1000;
       if(tempSensorId > 0){
         str += F(",\"t\":"); 
-        str += (TargetTemp);
+        str += TargetTemp;
         str += F(",\"curt\" : \""); 
         str += currTemp;
         str += F("\"");
