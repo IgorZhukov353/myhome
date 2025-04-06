@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  25-07-2024
+ Last changed:  06-04-2025
 */
 
 #include "Arduino.h"
@@ -417,6 +417,10 @@ bool ESP_WIFI::sendError_check() {
         }
     res = ping(F("192.168.0.1"), 5000); // попытка пингануть роутер
     if (!res && lastErrorTypeId == ErrorType::TIMEOUT && lastRouterReboot > lastWIFISended) {  // роутер не отвечает по таймауту и  последнее успешное  отправление было до перезагрузки роутера -> перегрузить МЕГУ
+      sendErrorCounter_ForAll = 0;
+      httpFailCounter = 0;
+      timeoutCounter = 0;
+      buffOverCounter = 0;
       wdt_enable(WDTO_8S);                                                                     // Для тестов не рекомендуется устанавливать значение менее 8 сек
       delay(10000);
       return 0;
@@ -425,6 +429,10 @@ bool ESP_WIFI::sendError_check() {
       closeConnect(); // izh 22-05-2020 отключить от WIFI
       lastRouterReboot = millis();
       routerRebootCount++;
+      sendErrorCounter_ForAll = 0;
+      httpFailCounter = 0;
+      timeoutCounter = 0;
+      buffOverCounter = 0;
       //return 1;
       return 0;
       }
