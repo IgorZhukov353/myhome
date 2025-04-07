@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  06-04-2025
+ Last changed:  07-04-2025
 */
 
 #include "Arduino.h"
@@ -80,6 +80,7 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
       request += reqStr;
       request += F(" HTTP/1.1\r\nHost: ");
       request += HOST_STR;
+      request += F( "\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
       request += F("\r\nConnection: close\r\n");
       requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     } else {
@@ -87,6 +88,7 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
       request += reqStr;
       request += F(" HTTP/1.1\r\nHost: ");
       request += HOST_STR;
+      request += F( "\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
       request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
       request += postBufLen;
       request += F("\r\n\r\n");
