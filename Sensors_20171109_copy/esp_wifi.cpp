@@ -80,9 +80,10 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
     } else {
       request = F("POST /");
     }
+    request += reqStr;
     request += F(" HTTP/1.1\r\nHost: ");
     request += HOST_STR;
-    request += F( "\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
+    request += F("\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
     request += F("\r\nConnection: close\r\n");
     if (!postBuf) {
       requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
@@ -92,7 +93,7 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
       request += F("\r\n\r\n");
       request += F("str=[");
       request2 = F("]"); 
-      request2 += F( "\r\n");
+      request2 += F("\r\n");
       requestLength = request.length() + (postBufLen - 6) + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     }
     
