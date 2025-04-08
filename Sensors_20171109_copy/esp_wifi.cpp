@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  07-04-2025
+ Last changed:  08-04-2025
 */
 
 #include "Arduino.h"
@@ -65,9 +65,9 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
     cmd1 = F("AT+CIPSTART=\"TCP\",\"");
     cmd1 += HOST_IP_STR;
     cmd1 += F("\",80");
-    r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом (3 попытки)
+    r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
   }
-  if (r) {
+  if (r) {  // соединение установлено
     String request, request2;
     short requestLength;
     short maxlen = reqStr.length() + postBufLen + 200;
@@ -77,24 +77,20 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
 
     if (!postBuf) {
       request = F("GET /");
-      request += reqStr;
-      request += F(" HTTP/1.1\r\nHost: ");
-      request += HOST_STR;
-      request += F( "\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
-      request += F("\r\nConnection: close\r\n");
-      requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
     } else {
       request = F("POST /");
-      request += reqStr;
-      request += F(" HTTP/1.1\r\nHost: ");
-      request += HOST_STR;
-      request += F( "\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
-      request += F( "\r\nConnection: close\r\nContent-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
+    }
+    request += F(" HTTP/1.1\r\nHost: ");
+    request += HOST_STR;
+    request += F( "\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
+    request += F("\r\nConnection: close\r\n");
+    if (!postBuf) {
+      requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+    } else {
+      request += F( "Content-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
       request += postBufLen;
       request += F("\r\n\r\n");
       request += F("str=[");
-      //request += postBuf;
-      
       request2 = F("]"); 
       request2 += F( "\r\n");
       requestLength = request.length() + (postBufLen - 6) + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
@@ -108,10 +104,16 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
     }
     r = espSendCommand( request, STATE::CLOSED, 15000, postBuf, request2);    // отослать запрос и получить ответ
   }
+  else{
+    lastErrorTypeId = ErrorType::CONNECT;
+    connectFailCounter++;
+  }
+  
   if (!r && lastErrorTypeId >= ErrorType::TIMEOUT) {
     sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
     sendErrorCounter_ForAll++;
-  } else {
+  } 
+  else {
     sendErrorCounter = 0;
     lastWIFISended = millis();  // время последней успешной отправки на сервер
   }
@@ -144,7 +146,6 @@ r = espSendCommand( F("AT+CWMODE=1"), STATE::OK, 5000 );
   str += WPASS;
   str += F("\"");
   r = espSendCommand(str, STATE::OK, 20000);  
-  //r = espSendCommand( String(F("AT+CWJAP=\"")) + WSSID + String(F("\",\"")) + WPASS + String(F("\"")), STATE::OK , 20000 );
 }
 if(!r){
   routerConnectErrorCounter++; 
@@ -231,20 +232,21 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
   {
     trace_begin(F("espSendCommand:"));
 	  if ( recived) {
-		bool httpFail;
-		if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
-		  httpFail = true;
-		  httpFailCounter++;
+		  if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
+		    httpFailCounter++;
         lastErrorTypeId = ErrorType::HTTP_FAIL;
-      } else
-		  httpFail = false;
-		  
-		result = (state_str_on[(byte)STATE::ERR] || httpFail) ? false : true;
-    trace_s((result) ? F("SUCCESS") : F("ERROR"));
-      lastErrorTypeId = (result) ? ErrorType::NONE : ErrorType::OTHER;
-    } else {
-		result = false;
-    trace_s(F("ERROR - Timeout"));
+        result = false;
+        } 
+      else{
+        result = (state_str_on[(byte)STATE::ERR]) ? false : true;
+        lastErrorTypeId = (result) ? ErrorType::NONE : ErrorType::OTHER;
+        }
+      trace_s((result) ? F("SUCCESS") : F("ERROR"));
+      
+      } 
+    else {
+		  result = false;
+      trace_s(F("ERROR - Timeout"));
       timeoutCounter++;
       lastErrorTypeId = ErrorType::TIMEOUT;
 	  }
@@ -342,11 +344,12 @@ void ESP_WIFI::addSens2Buffer(short id, short val) {
 }
 
 //------------------------------------------------------------------------
-void ESP_WIFI::sendBuffer2Site() {
+bool ESP_WIFI::sendBuffer2Site() {
   if (strlen(buffer) == 0)
-    return;
+    return false;
   if (_send2site(F("upd/send_info.php"), buffer))
     buffer[0] = 0;
+  return true;
 }
 
 //------------------------------------------------------------------------
@@ -380,7 +383,7 @@ void ESP_WIFI::closeConnect() {
 
 //------------------------------------------------------------------------
 bool ESP_WIFI::sendError_check() {
-{
+  {
     trace_begin(F("MEM="));
     trace_i(checkMemoryFree());
     trace_s(F(" MaxMsgLen="));
@@ -397,15 +400,12 @@ bool ESP_WIFI::sendError_check() {
     trace_i(buffOverCounter);
     trace_s(F(" TOutErr="));
     trace_i(timeoutCounter);
-
-
+    trace_s(F(" ConnErr="));
+    trace_i(connectFailCounter);
     trace_end();
   }
   
-
-  //espSendCommand( F("AT+CIPSTATUS"), STATE::OK , 5000);
-  
-  bool res = true;
+  bool res;
   if(sendErrorCounter > 3)
     res = false;
   else  
@@ -418,16 +418,12 @@ bool ESP_WIFI::sendError_check() {
         return 0;
         }
     res = ping(F("192.168.0.1"), 5000); // попытка пингануть роутер
-    if (!res && lastErrorTypeId == ErrorType::TIMEOUT && lastRouterReboot > lastWIFISended) {  // роутер не отвечает по таймауту и  последнее успешное  отправление было до перезагрузки роутера -> перегрузить МЕГУ
-      sendErrorCounter_ForAll = 0;
-      httpFailCounter = 0;
-      timeoutCounter = 0;
-      buffOverCounter = 0;
+    if (!res && lastErrorTypeId == ErrorType::TIMEOUT && lastRouterReboot > lastWIFISended) {  // роутер не отвечает на ping, последняя ошибка была по таймауту и последнее успешное отправление было до перезагрузки роутера -> перегрузить МЕГУ
       wdt_enable(WDTO_8S);                                                                     // Для тестов не рекомендуется устанавливать значение менее 8 сек
       delay(10000);
-      return 0;
+      return 0; // сюда уже не попадем
     }
-    if(res || millis() - lastRouterReboot > (60000 * 60) ){ // если роутер жив, то проблема с доступом в Инет, если нет - пропал WIFI (но не чаще чем в 1 час) - перегрузить роутер
+    if(millis() - lastRouterReboot > (60000 * 60) ){ // если роутер отвечает на ping, то проблема с доступом в Инет (модем, кончились деньги и т.п.), инче проблема в роутере -> перегрузить роутер (но не чаще чем в 1 час)
       closeConnect(); // izh 22-05-2020 отключить от WIFI
       lastRouterReboot = millis();
       routerRebootCount++;
@@ -435,8 +431,9 @@ bool ESP_WIFI::sendError_check() {
       httpFailCounter = 0;
       timeoutCounter = 0;
       buffOverCounter = 0;
-      //return 1;
-      return 0;
+      connectFailCounter = 0;
+      return 1;
+      //return 0;
       }
     }
   return 0;

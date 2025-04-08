@@ -1,10 +1,10 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  25-07-2024
+ Last changed:  08-04-2025
 */
 enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4};
-enum class ErrorType {NONE=0,HTTP_FAIL=1,TIMEOUT=2,OTHER=3};
+enum class ErrorType {NONE=0,HTTP_FAIL=1,TIMEOUT=20,OTHER=3,CONNECT=4};
 class ESP_WIFI {
 //protected:  
   //String buffer;
@@ -15,10 +15,11 @@ class ESP_WIFI {
  
   bool wifi_initialized = false;
   unsigned long lastWIFISended;
-  short sendErrorCounter;
-  short httpFailCounter;
-  short buffOverCounter;
-  short timeoutCounter;
+  unsigned short sendErrorCounter;
+  unsigned short httpFailCounter;
+  unsigned short buffOverCounter;
+  unsigned short timeoutCounter;
+  unsigned short connectFailCounter;
   ErrorType lastErrorTypeId;
   
   short routerConnectErrorCounter;
@@ -43,7 +44,7 @@ class ESP_WIFI {
   //void addInfo2Buffer(const String& str);
   void addInfo2Buffer(const char *str);
   
-  void sendBuffer2Site(); 
+  bool sendBuffer2Site(); 
 
   void checkIdle(); // отключение в случае простоя
   bool checkInitialized();

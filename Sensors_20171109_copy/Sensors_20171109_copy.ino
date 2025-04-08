@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  06-04-2025	-++
+  Last changed:  08-04-2025	-++
 */
-#define VERSION "Ver 1.183 of 06-04-2025 Igor Zhukov (C)"
+#define VERSION "Ver 1.184 of 08-04-2025 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -714,11 +714,6 @@ void remoteTermostat_check() {
 //------------------------------------------------------------------------
 // проверка наличия пакета ошибок передач по WIFI если надо - попытка перезагрузки, запуск раз в 10 мин
 void sendError_check() {
-  /*
-    trace("Snd=" + String(esp.sendCounter_ForAll) + + " SndKB=" + String(esp.bytesSended/1024) + " SErr=" + String(esp.sendErrorCounter_ForAll) +
-                 " DNSErr=" + String(esp.dnsFailCounter) +
-                 " RR="  + String(routerRebootCount));
-  */
   if (esp.sendError_check()) {
     remoteRebootExecute(1);
   }
@@ -726,7 +721,12 @@ void sendError_check() {
 
 //------------------------------------------------------------------------
 void sendBuffer2Site_check() {
-  esp.sendBuffer2Site();
+  bool result = esp.sendBuffer2Site();
+  if( result){ // если была передача данных на сайт
+    if(millis() - readCommand.lastActivated > (readCommand.timeout - 1000 )){ // и сразу после этого ожидается запрос к сайту по активным командам
+        readCommand.lastActivated += 5000; // то отложим этот запрос на 5 секунд чтобы небыло блокировки от провайдера (503 Service Unavailable)
+      }
+    }
 }
 
 //------------------------------------------------------------------------
@@ -797,13 +797,16 @@ void setup() {
 
 //------------------------------------------------------------------------
 void loop() {
-  esp.checkIdle();
+  //esp.checkIdle(); // not used
+  
+  sendBuffer2Site.checkActivated();
+  readCommand.checkActivated();
+  
   sendError.checkActivated();
-
   state_led_blink.checkActivated();
   sens.checkActivated();
   tempHum.checkActivated();
-  readCommand.checkActivated();
+  
   remoteTermostat.checkActivated();
   checkPump.checkActivated();
   check_fill_tank.checkActivated();
@@ -860,6 +863,11 @@ void loop() {
         dopInfo += F(" BOvrErr=");
         dopInfo += esp.buffOverCounter;
       }
+      if (esp.connectFailCounter) {
+        dopInfo += F(" ConnErr=");
+        dopInfo += esp.connectFailCounter;
+      }
+
       if (esp.routerRebootCount) {
         dopInfo += F(" RR=");
         dopInfo += esp.routerRebootCount;
@@ -898,6 +906,4 @@ void loop() {
     }
   } else
     watchDogOK_Sended2BD = false;
-
-  sendBuffer2Site.checkActivated();
 }
