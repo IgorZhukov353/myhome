@@ -1,10 +1,10 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  08-04-2025
+ Last changed:  09-04-2025
 */
 enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4};
-enum class ErrorType {NONE=0,HTTP_FAIL=1,TIMEOUT=20,OTHER=3,CONNECT=4};
+enum class ErrorType {NONE=0,HTTP_FAIL=1,TIMEOUT=20,OTHER=3,CONNECT=4,BUFFOVER=5};
 class ESP_WIFI {
 //protected:  
   //String buffer;

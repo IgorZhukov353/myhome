@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  08-04-2025
+ Last changed:  09-04-2025
 */
 
 #include "Arduino.h"
@@ -160,6 +160,7 @@ return r;
 //------------------------------------------------------------------------
 #define BUF_SIZE 10
 #define STATE_STR_MAX 5
+#define RESPONSE_LEN_MAX 512
 static const char *state_str[STATE_STR_MAX] = {"OK", "ERROR", "HTTP/1.1", "200 OK", "CLOSED"};
 static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6};
 
@@ -193,32 +194,39 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
     
   unsigned long tnow, tstart;
   bool result;
-  tnow = tstart = millis();
   String response;
-  if(goodResponse == STATE::CLOSED)
-    response.reserve(512);
-  else
-    response.reserve(100);
+  short responseLenMax = (goodResponse == STATE::CLOSED)? RESPONSE_LEN_MAX: 100;
   char c;
   char cbuffer[BUF_SIZE]; //= {'*','*','*','*','*','*','*','*','*','*'};
   bool state_str_on[STATE_STR_MAX] = {0, 0, 0, 0, 0};
-  byte recived = 0;
+  bool recived = false;
+  bool bufOverFlag = false;
+  short currResponseLen = 0;
+  tnow = tstart = millis();
+  response.reserve(responseLenMax);
+  
   while ( tnow <= tstart + timeout ) {
     c = ESP_Serial.read();
     if(c > 0) {
-      response += c; //String(c);
-      if (!state_str_on[(byte)STATE::ERR] && !state_str_on[(byte)STATE::CLOSED]) {
-        memmove(cbuffer, cbuffer + 1, sizeof(cbuffer) - 1);
-        cbuffer[sizeof(cbuffer) - 1] = c;
-        for (byte i = 0; i < STATE_STR_MAX; i++) {
-          if ((i == (byte)STATE::HTTP_OK || i == (byte)STATE::CLOSED) && !state_str_on[(byte)STATE::HTTP])
-            continue;
-          if (!memcmp(cbuffer + sizeof(cbuffer) - 1 - state_str_len[i], state_str[i], state_str_len[i])) {
-            state_str_on[i] = true;
-            if(i == (byte)goodResponse || i == (byte)STATE::ERR)
-              recived = true;
+      currResponseLen++;
+      if(currResponseLen < responseLenMax){
+        response += c; //String(c);
+        if (!state_str_on[(byte)STATE::ERR] && !state_str_on[(byte)STATE::CLOSED]) {
+          memmove(cbuffer, cbuffer + 1, sizeof(cbuffer) - 1);
+          cbuffer[sizeof(cbuffer) - 1] = c;
+          for (byte i = 0; i < STATE_STR_MAX; i++) {
+            if ((i == (byte)STATE::HTTP_OK || i == (byte)STATE::CLOSED) && !state_str_on[(byte)STATE::HTTP])
+              continue;
+            if (!memcmp(cbuffer + sizeof(cbuffer) - 1 - state_str_len[i], state_str[i], state_str_len[i])) {
+              state_str_on[i] = true;
+              if(i == (byte)goodResponse || i == (byte)STATE::ERR)
+                recived = true;
+            }
           }
         }
+      }
+      else{
+        bufOverFlag = true;
       }
     }
     if(recived)
@@ -228,9 +236,17 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
   
   while (ESP_Serial.available()) {
     c = ESP_Serial.read();
-    response += c; //String(c);
+    currResponseLen++;
+    if(currResponseLen < responseLenMax)
+      response += c;
+    else{
+      bufOverFlag = true;
+     }
   }
   {
+    if(bufOverFlag)
+      buffOverCounter++;  
+      
     trace_begin(F("espSendCommand:"));
 	  if ( recived) {
 		  if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
@@ -239,8 +255,8 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
         result = false;
         } 
       else{
-        result = (state_str_on[(byte)STATE::ERR]) ? false : true;
-        lastErrorTypeId = (result) ? ErrorType::NONE : ErrorType::OTHER;
+        result = (state_str_on[(byte)STATE::ERR] || bufOverFlag) ? false : true;
+        lastErrorTypeId = (result) ? ErrorType::NONE : (bufOverFlag)? ErrorType::BUFFOVER : ErrorType::OTHER;
         }
       trace_s((result) ? F("SUCCESS") : F("ERROR"));
       
@@ -253,8 +269,8 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
 	  }
     trace_s(F(" - Response time: " ));
     trace_l(millis() - tstart);
-    trace_s(F("ms."));
-
+    trace_s(F("ms. Len: "));
+    trace_i(currResponseLen);
 	  trace_s(F("\n\rRESPONSE:"));
 	  trace_s(response);
 	  trace_s(F("\n\r---END RESPONSE---"));
