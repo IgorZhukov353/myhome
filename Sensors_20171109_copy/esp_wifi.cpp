@@ -135,7 +135,7 @@ delay(100);
 r = espSendCommand(F("AT"), STATE::OK , 5000 );
 r = espSendCommand(F("ATE0"), STATE::OK , 5000 );
 //AT+RST
-r = espSendCommand( F("AT+GMR"), STATE::OK, 5000 );
+r = espSendCommand( F("AT+GMR"), STATE::OK, 10000 );
 
 //delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
 
@@ -195,7 +195,7 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
   unsigned long tnow, tstart;
   bool result;
   String response;
-  short responseLenMax = (goodResponse == STATE::CLOSED)? RESPONSE_LEN_MAX: 100;
+  short responseLenMax = (goodResponse == STATE::CLOSED)? RESPONSE_LEN_MAX: 200;
   char c;
   char cbuffer[BUF_SIZE]; //= {'*','*','*','*','*','*','*','*','*','*'};
   bool state_str_on[STATE_STR_MAX] = {0, 0, 0, 0, 0};
