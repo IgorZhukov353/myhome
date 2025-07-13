@@ -29,7 +29,7 @@ table.blueTable td, table.blueTable th {
   padding: 4px 2px;
 }
 table.blueTable tbody td {
-  font-size: 13px;
+  font-size: 12px;
 }
 table.blueTable tr:nth-child(even) {
   background: #D0E4F5;

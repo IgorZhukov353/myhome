@@ -8,7 +8,7 @@
 
 <Files "*.php">
 # Указываем место положение файла .htpasswd, включаем аутентификация
-AuthUserFile /home/f0195241/domains/f0195241.xsph.ru/public_html/upd/.htpasswd
+AuthUserFile /var/www/igorzhuk/data/www/igorzhukov353.h1n.ru/upd/.htpasswd
 AuthName "Password Protected Area"
 AuthType Basic
 #Require user igorjukov353

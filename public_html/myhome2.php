@@ -3,6 +3,18 @@
 <title>MyHome</title>
 <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
 <link rel="stylesheet" href="mystyle.css" type="text/css"/>
+    <style>
+        .command,
+        .info {
+            display: flex;
+            align-items: center;
+        }
+
+        .command_name {
+            margin: 0px 10px;
+            font-size: 12px;
+        }
+    </style>
 </head>
 <body>
 
@@ -47,21 +59,19 @@ try {
 <tr>
 <td style="width: 100px;text-align: center;"><?php echo $row->date?></td>
 <td style="width: 300px;text-align: left;">
-    <div style="display:table-cell;text-align:left; width:300px;height:20px;vertical-align: middle;">
-    <div style="display:inline-block;text-align:left; width:20px; height:20px;vertical-align: middle;">
+    <div class="command">
+        <div style="width: 20px;">
         <?php echo ($row->change_online)? '<img src="gif/gif_sec.gif" width="20px" height="20px" vertical-align= "middle"/>': (($row->online)? '<img src="gif/gif_gear.gif" width="20px" height="20px" vertical-align= "middle"/>':'');?>
-        
     </div>
-	<div style="display:inline-block;border: 0px solid #AAAAAA;text-align:left; width:180px; height:20px;vertical-align: middle;">
+	<div class="command_name test1" style="text-align:left; width:180px;">
 	    <?php echo $row->code, ' ','<span style="color:red;font-size: 10px;">',$row->str,'</span>' ?>
 	</div>
-	<div style="display:inline-block;border: 0px solid #AAAAAA;text-align:left;vertical-align: middle; width:70px; height:20px;">
+	<div style="text-align:left;vertical-align: middle; width:70px; height:20px;">
 	    <form action="upd/cmd_again2.php">
 	    <input type="hidden" name="id" value="<?php echo $row->command_id; ?>" />
 	    <input type="hidden" name="change_online" value="<?php echo $row->change_online; ?>" />
 	    <button class=myButton style="align-self: center;line-height: 10px;" type="submit"><?php echo ($row->change_online)? "Отмена":(($row->online)?"Остановить":"Выполнить");?> </button>
 	    </form>
-	</div>
 	</div>
     </td>
 </tr>

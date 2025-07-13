@@ -20,6 +20,7 @@ try {
             printf("%s=%s\n\r", $row[0], $row[1]);
             }
         mysqli_free_result($result);
+
     }
 catch (Exception $e) {
     echo 'Error :' . $e->getMessage() . '<br />';

@@ -1,6 +1,6 @@
 <?php
 // izh 2019-11-14 (C)
-// last update 2024-07-22
+// last update 06-08-2024
 // через POST или GET
 /* пример запроса
 POST /upd/send_info.php HTTP/1.1
@@ -106,12 +106,12 @@ try {
 					/* [{"type":"E","id":8,"text":{"id":"fill_tank","l":1799998,"cnt":1,"w":1,"a":1,"actt":1},"date":"2024-06-24 19:11:10"}] */
 					
 					$command_id = $command->id;
-	                $REMAIN_TIME = round($command->l / 1000,0);
+	                $REMAIN_TIME = $command->l; //round($command->l / 1000,0);
 					$CURRENT_ACTIVE_COUNT = $command->cnt;
 					$ONLINE = $command->w;
 					$ACTIVE = $command->a;
-					$CURRENT_ACTIVE_TIME = round($command->actt / 1000,0);
-					$CURRENT_ONLINE_TIME = round($command->ont / 1000,0);
+					$CURRENT_ACTIVE_TIME = $command->actt; //round($command->actt / 1000,0);
+					$CURRENT_ONLINE_TIME = $command->ont;  //round($command->ont / 1000,0);
 					if(isset($command->dopopt))
 					    $DOP_INFO = json_encode($command->dopopt);
 					
