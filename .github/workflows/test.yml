@@ -1,0 +1,29 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+      - name: Install Arduino AVR Core (for Uno)
+        shell: bash  # Use Git Bash for consistent CLI syntax
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+      - name: Compile Sketch for Arduino Uno
+        shell: bash
+        run: |
+          arduino-cli compile --fqbn arduino:avr:uno ./_PIR_CHECK/pircheck
+      
+
