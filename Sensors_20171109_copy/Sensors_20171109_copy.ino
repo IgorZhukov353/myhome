@@ -1,7 +1,7 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  30-06-2025	-++
+  Last changed:  30-06-2025	-++++
 */
 #define VERSION "Ver 1.185 of 30-06-2025 Igor Zhukov (C)"
 
