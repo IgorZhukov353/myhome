@@ -24,6 +24,6 @@ jobs:
       - name: Compile Sketch for Arduino Uno
         shell: bash
         run: |
-          arduino-cli compile --fqbn arduino:avr:uno ./_PIR_CHECK/pircheck
+          arduino-cli compile --fqbn arduino:avr:mega ./_PIR_CHECK/pircheck
       
 
