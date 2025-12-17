@@ -22,11 +22,10 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install arduino:avr
           arduino-cli lib install SD
-          arduino-cli lib RTClib
-          arduino-cli lib SD
-          arduino-cli lib DallasTemperature
-          arduino-cli lib DHTlib
-          arduino-cli lib ArduinoJson
+          arduino-cli lib install RTClib
+          arduino-cli lib install DallasTemperature
+          arduino-cli lib install DHTlib
+          arduino-cli lib install ArduinoJson
       - name: Compile Sketch for Arduino Mega
         shell: bash
         run: |
