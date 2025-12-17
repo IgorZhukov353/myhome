@@ -20,8 +20,8 @@ jobs:
         shell: bash  # Use Git Bash for consistent CLI syntax
         run: |
           arduino-cli core update-index
-          arduino-cli core install arduino:avr
-      - name: Compile Sketch for Arduino Uno
+          arduino-cli core install arduino:avr:mega
+      - name: Compile Sketch for Arduino Mega
         shell: bash
         run: |
           arduino-cli compile --fqbn arduino:avr:mega ./Sensors_20171109_copy
