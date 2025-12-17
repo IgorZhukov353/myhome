@@ -16,11 +16,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Arduino CLI
         uses: arduino/setup-arduino-cli@v2
-      - name: Install Arduino AVR Core (for Uno)
+      - name: Install Arduino AVR Core (for Mega)
         shell: bash  # Use Git Bash for consistent CLI syntax
         run: |
           arduino-cli core update-index
-          arduino-cli core install arduino:avr:mega
+          arduino-cli core install arduino:avr
       - name: Compile Sketch for Arduino Mega
         shell: bash
         run: |
