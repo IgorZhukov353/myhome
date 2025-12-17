@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: Sensor Mega
 
 on:
   push:
@@ -30,4 +30,4 @@ jobs:
       - name: Compile Sketch for Arduino Mega
         shell: bash
         run: |
-          arduino-cli compile --fqbn arduino:avr:mega ./Sensors_20171109_copy
+          arduino-cli compile --fqbn arduino:avr:mega2560 ./Sensors_20171109_copy
