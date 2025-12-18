@@ -36,4 +36,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fortest1
-          path: ./Sensors_20171109_copy/util.h
+          path: build/arduino:avr:mega/*.ino.hex
