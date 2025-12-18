@@ -32,8 +32,10 @@ jobs:
         shell: bash
         run: |
           arduino-cli compile --fqbn arduino:avr:mega --build-path ./build ./Sensors_20171109_copy
-      - name: Archive code fortest1
-        uses: actions/upload-artifact@v4
-        with:
-          name: fortest1
-          path: ./build/Sensors_20171109_copy.hex
+          ls ./Sensors_20171109_copy
+          ls ./build
+     # - name: Archive code fortest1
+        #uses: actions/upload-artifact@v4
+        #with:
+         # name: fortest1
+         # path: ./build/Sensors_20171109_copy.hex
