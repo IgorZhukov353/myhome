@@ -27,7 +27,7 @@ jobs:
           arduino-cli lib install DallasTemperature
           arduino-cli lib install DHTlib
           arduino-cli lib install ArduinoJson
-          arduino-cli config dump
+          #arduino-cli config dump
       - name: Compile Sketch for Arduino Mega
         shell: bash
         run: |
@@ -36,4 +36,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fortest1
-          path: ./build/*.ino.hex
+          path: ./Sensors_20171109_copy/build
