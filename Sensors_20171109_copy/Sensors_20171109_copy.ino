@@ -1,7 +1,11 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
+<<<<<<< HEAD
   Last changed:  04-01-2026	-++
+=======
+  Last changed:  30-06-2025	-++++--++
+>>>>>>> 81ddefdae9b3c02e968dad6122f76f4f9b3722da
 */
 #define VERSION "Ver 1.186 of 04-01-2026 Igor Zhukov (C)"
 

@@ -1,0 +1,347 @@
+<html>
+
+<head>
+    <script src="https://unpkg.com/axios@1.1.2/dist/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/2.3.0/mustache.min.js"></script>
+    <style>
+        html {
+            font-size: 30px;
+        }
+
+
+        table.blueTable {
+            border: 1px solid #1C6EA4;
+            background-color: #EEEEEE;
+            width: 100%;
+            text-align: left;
+            border-collapse: collapse;
+        }
+
+        .blueTable td,
+        .blueTable th {
+            border: 1px solid #AAAAAA;
+            padding: 4px 2px;
+            text-align: center;
+        }
+
+        table.blueTable td {
+            font-size: 0.7rem;
+            text-align: center;
+        }
+
+        table.blueTable tr:nth-child(even) {
+            background: #D0E4F5;
+        }
+
+        table.blueTable thead {
+            background: #1C6EA4;
+            background: -moz-linear-gradient(top, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+            background: -webkit-linear-gradient(top, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+            background: linear-gradient(to bottom, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+            border-bottom: 2px solid #444444;
+        }
+
+        table.blueTable thead th {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #FFFFFF;
+            border-left: 2px solid #D0E4F5;
+        }
+
+
+        table.blueTable caption {
+            font-size: o.8rem;
+            text-align: center;
+
+        }
+
+        #welcometext {
+            font-size: 0.9rem;
+            background-color: #FFF;
+            color: #444;
+            text-shadow: 1px 0px 1px #ccc, 0px 1px 1px #eee, 2px 1px 1px #ccc, 1px 2px 1px #eee, 3px 2px 1px #ccc, 2px 3px 1px #eee, 4px 3px 1px #ccc, 3px 4px 1px #eee, 5px 4px 1px #ccc, 4px 5px 1px #eee, 6px 5px 1px #ccc, 5px 6px 1px #eee, 7px 6px 1px #ccc;
+        }
+
+        .myButton {
+            color: rgb(255, 255, 255);
+            font-size: 0.6rem;
+            line-height: 10px;
+            padding: 3px;
+            border-radius: 8px;
+            font-family: Georgia, serif;
+            font-weight: normal;
+            text-decoration: none;
+            font-style: normal;
+            font-variant: normal;
+            text-transform: none;
+            background-image: linear-gradient(to right, rgb(28, 110, 164) 0%, rgb(35, 136, 203) 50%, rgb(20, 78, 117) 100%);
+            box-shadow: rgba(0, 0, 0, 0.49) 1px 0px 8px 0px;
+            border: 2px solid rgb(28, 110, 164);
+            display: inline-block;
+        }
+
+        .myButton:hover {
+            background: #1C6EA4;
+        }
+
+        .myButton:active {
+            background: #144E75;
+        }
+
+
+        .command,
+        .info {
+            display: flex;
+            align-items: center;
+        }
+
+        .command_name {
+            margin: 0px 10px;
+            font-size: 0.7rem;
+        }
+
+        summary {
+            font-size: 0.7rem;
+        }
+    </style>
+    <title>MyHome</title>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+    <!-- <link rel="stylesheet" href="mystyle.css" type="text/css" /> -->
+</head>
+
+<body>
+
+
+    <button class="refresh" onclick="buttonFirstClick()">Refresh</button>
+    <div class="main">
+
+    </div>
+    <div id=welcometext style="text-align: center;width: 100%;">Привет, сегодня
+        {{curdate}}</div>
+    <br />
+    <table class="blueTable" style="width: 100%;" border="1">
+        <caption style="font-size: 0.75rem;">Текущие температура и влажность.</caption>
+        <thead>
+            <tr>
+                <td style="width: 25%;">Дата</td>
+                <td style="width: 25%;">Место</td>
+                <td style="width: 25%;">Темп/Влажн</td>
+                <td style="width: 25%;">Мin/Max/Avg</td>
+            </tr>
+        </thead>
+        <tbody class="temp">
+            <tr>
+                <td>{{time}}</td>
+                <td>{{name}}</td>
+                <td>
+                    <div style="display: flex;justify-content: space-between;">
+                        <div style="margin-left: 10px;width: 20px;">
+                            <!--{{#alarm}}<img src="gif/lowtemp.png" width="20px" height="20px" vertical-align= "middle"/><span style="color:red">{{temp}}</span>{{/alarm}}{{^alarm}}{{temp}}{{/alarm}}/{{hum}}-->
+
+                            {{#alarm}}<img src="gif/gif_snow.gif" width="20px" height="20px"
+                                vertical-align="middle" />{{/alarm}}
+                        </div>
+                        <div style="width: 100%;">
+                            {{#alarm}}<span style="color:red">{{temp}}</span>{{/alarm}}
+                            {{^alarm}}{{temp}}{{/alarm}}/{{hum}}
+                        </div>
+                    </div>
+                </td>
+                <td>{{avg}}</td>
+            </tr>
+        </tbody>
+    </table>
+    <br />
+    <!--details> <summary>Срабатывания датчиков.</summary-->
+    <table class="blueTable" style="width: 100%;" border="1">
+        <caption style="font-size: 0.75rem;">Срабатывания датчиков.</caption>
+        <thead>
+            <tr>
+
+                <td style="width: 35%;">Место</td>
+                <td style="width: 15%;">Кол-во</td>
+                <td style="width: 25%;">Посл/Перв</td>
+            </tr>
+        </thead>
+
+        <tbody class="sens">
+            <tr>
+
+                <td>{{name}}</td>
+                <td>{{cnt}}</td>
+                <td>{{last}}{{#lastvaluetrue}}<span style="color:green">①</span>{{/lastvaluetrue}}{{^lastvaluetrue}}<span style="color:red">⓪</span>{{/lastvaluetrue}}/{{first}}{{#firstvaluetrue}}<span style="color:green">①</span>{{/firstvaluetrue}}{{^firstvaluetrue}}<span style="color:red">⓪</span>{{/firstvaluetrue}}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <!--/details-->
+    <br />
+
+    <details>
+        <summary id="last_watchdog">
+            Деж сообщения. Последнее:
+            <span style="color:{{last_watchdog_color}};">{{last_watchdog_time}}</span>
+        </summary>
+        <table class="blueTable" style="width: 100%;" border="1">
+            <thead>
+                <tr>
+                    <td style="width: 20%">Дата</td>
+                    <td style="width: 80%">Инфо</td>
+                </tr>
+            </thead>
+            <tbody class="watchdog">
+                <tr>
+                    <td>{{time}}</td>
+                    <td><div style="text-align:left;width: 100%;margin-left: 10px;">{{info}}</div></td>
+                </tr>
+            </tbody>
+        </table>
+    </details>
+    <br />
+
+    <details>
+        <summary id="last_getcmd">Выполн. команд. Послед:
+            <span style="color:{{last_getcmd_color}};">{{last_getcmd_time}}</span>
+        </summary>
+        <table class="blueTable" style="width: 100%;" border="1">
+            <thead>
+                <tr>
+                    <td style="width: 20%;">Дата выполнения</td>
+                    <td style="width: 80%;">Команда</td>
+                </tr>
+            </thead>
+
+            <tbody class="cmd">
+                <tr>
+                    <td>{{time}}</td>
+                    <td>
+                        <div style="display: flex;justify-content: space-between;">
+                            <div style="margin-left: 10px;width: 20px;">
+                                {{#change_online}}<img src="gif/gif_sec.gif" width="20px" height="20px"
+                                    vertical-align="middle" />{{/change_online}}
+                                {{^change_online}}{{#online}}<img src="gif/gif_gear.gif" width="20px" height="20px"
+                                    vertical-align="middle" />{{/online}}{{/change_online}}
+                            </div>
+                            <div style="text-align:left;width: 90%;margin-left: 10px;">{{text}} {{#str}}<span
+                                    style="color:red">({{str}})</span>{{/str}}</div>
+                            <div style="margin-right: 10px;">
+                                {{#change_online}}<button class=myButton
+                                    onclick=clickChangeCmd({{command_id}},{{change_online}})
+                                    style="text-align: right;">Отмена</button>{{/change_online}}
+                                {{^change_online}}{{#online}}<button class=myButton
+                                    onclick=clickChangeCmd({{command_id}},{{change_online}})
+                                    style="text-align: right;">Остановить</button>{{/online}}{{/change_online}}
+                                {{^change_online}}{{^online}}<button class=myButton
+                                    onclick=clickChangeCmd({{command_id}},{{change_online}})
+                                    style="text-align: right;">Выполнить</button>{{/online}}{{/change_online}}
+
+
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+    </details>
+    <script>
+        let sensTemplate, tempTemplate, watchdogTemplate, cmdTemplate, lastWatchdogTemplate, lastCmdTemplate;
+        let json;
+
+        function buttonFirstClick() {
+            axios.get('get_data.php')
+                .then(function (response) {
+                    // handle success
+                    console.log(response);
+                    json = response.data;//JSON.parse(response)
+                    buttonRefreshClick();
+                })
+                .catch(function (error) {
+                    // handle error
+                    console.log(error);
+                })
+                .finally(function () {
+                    // always executed
+                });
+
+        }
+
+        // const convertStringToHTML = htmlString => {
+        //     const parser = new DOMParser();
+        //     const html = parser.parseFromString(htmlString, 'text/html');
+        //     return html.body.innerText;
+        // }
+
+
+        function buttonRefreshClick() {
+            //let json = { "curdate": "10-12-2023 22:17:44", "temp": [{ "time": "21:30:03", "name": "В доме", "alarm": 0, "temp": "15°", "hum": "31%", "avg": "14°\/15°\/14°" }, { "time": "9.12 11:13:14", "name": "В подполе", "alarm": 0, "temp": "7°", "hum": "95%", "avg": "" }, { "time": "20:50:01", "name": "На улице", "alarm": 0, "temp": "-12°", "hum": "100%", "avg": "-18°\/-12°\/-14°" }, { "time": "22:15:06", "name": "В колодце", "alarm": 0, "temp": "1°", "hum": "--", "avg": "0°\/2°\/1°" }, { "time": "22:15:06", "name": "В септике", "alarm": 0, "temp": "3°", "hum": "--", "avg": "2°\/3°\/3°" }, { "time": "20:30:00", "name": "Второй этаж", "alarm": 1, "temp": "7°", "hum": "--", "avg": "7°\/8°\/7°" }, { "time": "22:15:06", "name": "Гараж", "alarm": 0, "temp": "6°", "hum": "--", "avg": "1°\/7°\/4°" }], "last_watchdog_color": "green", "last_watchdog_time": "10.12.23 22:09:45", "watchdog": [{ "time": "10.12.23 22:09:45", "info": "T=13d.7h. (PingErr:29 Snd=25430 SndKB=8868 SErr=6 RR=1(52h.))" }, { "time": "10.12.23 21:09:42", "info": "T=13d.6h. (Snd=25352 SndKB=8840 SErr=6 RR=1(51h.))" }, { "time": "10.12.23 20:09:38", "info": "T=13d.5h. (Snd=25273 SndKB=8812 SErr=6 RR=1(50h.))" }, { "time": "10.12.23 19:09:35", "info": "T=13d.4h. (Snd=25195 SndKB=8784 SErr=6 RR=1(49h.))" }, { "time": "10.12.23 18:09:32", "info": "T=13d.3h. (Snd=25116 SndKB=8755 SErr=6 RR=1(48h.))" }], "last_getcmd_color": "green", "last_getcmd_time": "10.12.23 22:10:25 (3...)", "cmd": [{ "time": "24.11.23 15:37:36", "text": "pump(насос)", "str": "1h 1m 34s", "online": 1, "change_online": 0, "command_id": 1 }, { "time": null, "text": "boiler", "str": null, "online": 0, "change_online": 0, "command_id": 2 }, { "time": null, "text": "heat_cable", "str": null, "online": 0, "change_online": 0, "command_id": 3 }, { "time": "24.11.23 15:40:20", "text": "heat_vegetable_store", "str": "7d 17h 17m 48s", "online": 1, "change_online": 0, "command_id": 4 }, { "time": null, "text": "reboot_router", "str": null, "online": 0, "change_online": 0, "command_id": 5 }, { "time": null, "text": "reboot", "str": null, "online": 0, "change_online": 0, "command_id": 6 }] }
+
+
+            document.getElementById('welcometext').innerHTML = Mustache.render('Привет, сегодня {{curdate}}', json);
+            //json = { ...json, temp: json.temp.map(t => ({ ...t, value: convertStringToHTML(t.value), avg: convertStringToHTML(t.avg) })) }
+
+            if (!tempTemplate) {
+                tempTemplate = `{{#temp}}${document.querySelector('.temp').innerHTML}{{/temp}}`
+            }
+
+            document.querySelector('tbody.temp').innerHTML = Mustache.render(tempTemplate, json);
+
+            if (!sensTemplate) {
+                sensTemplate = `{{#sens}}${document.querySelector('.sens').innerHTML}{{/sens}}`
+            }
+
+            document.querySelector('tbody.sens').innerHTML = Mustache.render(sensTemplate, json);
+
+
+            if (!lastWatchdogTemplate) {
+                lastWatchdogTemplate = document.getElementById('last_watchdog').innerHTML
+            }
+            document.getElementById('last_watchdog').innerHTML = Mustache.render(lastWatchdogTemplate, json);
+
+            if (!watchdogTemplate) {
+                watchdogTemplate = `{{#watchdog}}${document.querySelector('.watchdog').innerHTML}{{/watchdog}}`
+            }
+            document.querySelector('tbody.watchdog').innerHTML = Mustache.render(watchdogTemplate, json);
+
+            if (!lastCmdTemplate) {
+                lastCmdTemplate = document.getElementById('last_getcmd').innerHTML
+            }
+            document.getElementById('last_getcmd').innerHTML = Mustache.render(lastCmdTemplate, json);
+
+            if (!cmdTemplate) {
+                cmdTemplate = `{{#cmd}}${document.querySelector('.cmd').innerHTML}{{/cmd}}`
+            }
+
+            document.querySelector('tbody.cmd').innerHTML = Mustache.render(cmdTemplate, json);
+
+        }
+        function clickChangeCmd(id, change_online) {
+            //console.log('${id}----${change_online}');
+            axios.get('/upd/cmd_upd2.php?id=' + id + '&change_online=' + change_online)
+                .then(function (response) {
+                    // handle success
+                    console.log(response);
+                    //let json = JSON.parse(response)
+                    init()
+                })
+                .catch(function (error) {
+                    // handle error
+                    console.log(error);
+                })
+                .finally(function () {
+                    // always executed
+                });
+        }
+
+
+        function init() {
+            buttonFirstClick()
+        }
+
+        init()
+        console.log('start')
+    </script>
+
+</body>
+
+</html>

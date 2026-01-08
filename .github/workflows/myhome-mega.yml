@@ -1,0 +1,46 @@
+name: Sensor Mega
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+      - name: Install Arduino AVR Core (for Mega)
+        shell: bash  # Use Git Bash for consistent CLI syntax
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+          #arduino-cli lib install oneWire
+          #arduino-cli lib install SD
+          #arduino-cli lib install RTClib
+          #arduino-cli lib install DallasTemperature
+          #arduino-cli lib install DHTlib
+          #arduino-cli lib install ArduinoJson
+          #arduino-cli config dump
+      - name: Compile Sketch for Arduino Mega
+        shell: bash
+        run: |
+          arduino-cli compile --fqbn arduino:avr:mega --build-path ./build ./blinky
+          #ls ./Sensors_20171109_copy
+          ls ./build
+      - name: Archive code fortest1
+        uses: actions/upload-artifact@v4
+        with:
+          name: fortest_elf
+          path: ./build/blinky.ino.elf
+      - name: Archive code fortest2
+        uses: actions/upload-artifact@v4
+        with:
+          name: fortest_hex
+          path: ./build/blinky.ino.hex
