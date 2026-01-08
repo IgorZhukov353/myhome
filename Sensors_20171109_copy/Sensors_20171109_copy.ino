@@ -1,9 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-  Last changed:  30-06-2025	-++
+  Last changed:  04-01-2026	-++
 */
-#define VERSION "Ver 1.185 of 30-06-2025 Igor Zhukov (C)"
+#define VERSION "Ver 1.186 of 04-01-2026 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -695,7 +695,8 @@ void remoteRebootExecute(int act) {
   delay(1000 * 10);  // 10 сек
   digitalWrite(pin, HIGH);
   pinMode(pin, INPUT);
-
+  if(act == 1)
+    delay(1000 * 60 * 2);  // если перегружаем роутер - ждем 2 мин 
   trace(F("Rebooted."));
 }
 

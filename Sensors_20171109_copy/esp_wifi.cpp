@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  09-04-2025
+ Last changed:  04-01-2026
 */
 
 #include "Arduino.h"
@@ -58,6 +58,12 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
   if (!checkInitialized()) {
     return false;
   }
+  if(yandexOnly){
+    if(ping(HOST_IP_STR, 15000)) // попытка пингануть свой сервер
+      yandexOnly = false;
+    else
+      return false;
+  }
   short postBufLen = (postBuf) ? strlen(postBuf) + 6 : 0;  // + 6 ->str =[...]
   bool r;
   {
@@ -66,6 +72,9 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
     cmd1 += HOST_IP_STR;
     cmd1 += F("\",80");
     r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
+    if(lastErrorTypeId == ErrorType::ALREADY_CONNECT){
+      r = 1;
+    }
   }
   if (r) {  // соединение установлено
     String request, request2;
@@ -132,13 +141,11 @@ delay(200);
 
 ESP_Serial.begin(115200); // default baud rate for ESP8266
 delay(100);
+
 r = espSendCommand(F("AT"), STATE::OK , 5000 );
-r = espSendCommand(F("ATE0"), STATE::OK , 5000 );
 //AT+RST
+r = espSendCommand(F("ATE0"), STATE::OK , 5000 );
 r = espSendCommand( F("AT+GMR"), STATE::OK, 10000 );
-
-//delay(100); // Without this delay, sometimes, the program will not start until Serial Monitor is connected
-
 r = espSendCommand( F("AT+CWMODE=1"), STATE::OK, 5000 );
 {
   String str = F("AT+CWJAP=\""); 
@@ -159,10 +166,10 @@ return r;
 
 //------------------------------------------------------------------------
 #define BUF_SIZE 10
-#define STATE_STR_MAX 5
+#define STATE_STR_MAX 6
 #define RESPONSE_LEN_MAX 512
-static const char *state_str[STATE_STR_MAX] = {"OK", "ERROR", "HTTP/1.1", "200 OK", "CLOSED"};
-static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6};
+static const char *state_str[STATE_STR_MAX] = {"OK", "ERROR", "HTTP/1.1", "200 OK", "CLOSED", "ALREADY"};
+static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6, 7};
 
 bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const unsigned long timeout, const char *postBuf, const String &cmd2) {
 {
@@ -198,7 +205,7 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
   short responseLenMax = (goodResponse == STATE::CLOSED)? RESPONSE_LEN_MAX: 200;
   char c;
   char cbuffer[BUF_SIZE]; //= {'*','*','*','*','*','*','*','*','*','*'};
-  bool state_str_on[STATE_STR_MAX] = {0, 0, 0, 0, 0};
+  bool state_str_on[STATE_STR_MAX] = {0, 0, 0, 0, 0, 0};
   bool recived = false;
   bool bufOverFlag = false;
   short currResponseLen = 0;
@@ -249,6 +256,11 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
       
     trace_begin(F("espSendCommand:"));
 	  if ( recived) {
+      if(state_str_on[(byte)STATE::ALREADY]){
+        lastErrorTypeId = ErrorType::ALREADY_CONNECT;
+        result = false;
+        } 
+      else{
 		  if(state_str_on[(byte)STATE::HTTP] && !state_str_on[(byte)STATE::HTTP_OK]){
 		    httpFailCounter++;
         lastErrorTypeId = ErrorType::HTTP_FAIL;
@@ -258,6 +270,7 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
         result = (state_str_on[(byte)STATE::ERR] || bufOverFlag) ? false : true;
         lastErrorTypeId = (result) ? ErrorType::NONE : (bufOverFlag)? ErrorType::BUFFOVER : ErrorType::OTHER;
         }
+      }
       trace_s((result) ? F("SUCCESS") : F("ERROR"));
       
       } 
@@ -373,17 +386,23 @@ bool ESP_WIFI::sendBuffer2Site() {
 bool ESP_WIFI::check_Wait_Internet() {
    if(!checkInitialized())
     return 0;
-  bool res = false;
+   bool res = false;
    trace(F("check_Wait_Internet ...")); 
    unsigned long tstart, tnow, timeout = 1000L * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
    tnow = tstart = millis();
    while(tnow < tstart + timeout ){
+    delay(10000);
     res = ping(HOST_IP_STR, 15000);  // попытка пингануть свой сервер
     if (res) {
       break;
     }
+    res = ping(F("ya.ru"), 5000); // попытка пингануть яндекс
+    if(res){ // 6-01-2026 отключен мобильный интернет по БПЛА-опасности, перегружать нет смысла, нужно ждать когда будет доступен HOST_IP_STR
+      yandexOnly = true;  
+      return 0;
+    }
     tnow = millis();
-    delay(10000);
+    
     }
   return res;
 }
@@ -391,8 +410,11 @@ bool ESP_WIFI::check_Wait_Internet() {
 //------------------------------------------------------------------------
 void ESP_WIFI::closeConnect() {
   if(wifi_initialized){
-    espSendCommand(F("AT+CWQAP"), STATE::OK, 5000 );
+    espSendCommand(F("AT+CWQAP"), STATE::OK, 15000 );
     delay(1000);
+    espSendCommand(F("AT+RST"), STATE::OK , 20000 );
+    delay(1000); 
+
     wifi_initialized = false;
     esp_power_switch(false);
   }  
@@ -419,21 +441,37 @@ bool ESP_WIFI::sendError_check() {
     trace_i(timeoutCounter);
     trace_s(F(" ConnErr="));
     trace_i(connectFailCounter);
+    trace_s(F(" YandexOnly="));
+    trace_i(yandexOnly);
     trace_end();
   }
+  //ping(F("ya.ru"), 5000); // попытка пингануть яндекс
   
   bool res;
   if(sendErrorCounter > 3)
     res = false;
   else  
-    res = ping(F("192.168.8.1"), 5000); // попытка пингануть модем    
+    res = 1; //ping(F("192.168.8.1"), 5000); // попытка пингануть модем    
     
   if(!res){
     res = ping(HOST_IP_STR, 15000); // попытка пингануть свой сервер
     if(res){ // все наладилось
-        sendErrorCounter = 0;
-        return 0;
+        res = ping(HOST_IP_STR, 15000, 1); // попытка соединиться со своим сервером через TCP
+        if(res){ // все действительно наладилось
+          ping(HOST_IP_STR, 15000, 2);  // отсоединиться
+          sendErrorCounter = 0;
+          yandexOnly = false;
+          return 0;
         }
+    }
+  else {
+    res = ping(F("ya.ru"), 5000); // попытка пингануть яндекс
+    if(res){ // 6-01-2026 возможно отключен мобильный интернет по БПЛА-опасности (доступен только яндекс), перегружать нет смысла, нужно ждать когда будет доступен HOST_IP_STR
+      yandexOnly = true;  
+      return 0;
+    }
+  }
+
     res = ping(F("192.168.0.1"), 5000); // попытка пингануть роутер
     if (!res && lastErrorTypeId == ErrorType::TIMEOUT && lastRouterReboot > lastWIFISended) {  // роутер не отвечает на ping, последняя ошибка была по таймауту и последнее успешное отправление было до перезагрузки роутера -> перегрузить МЕГУ
       wdt_enable(WDTO_8S);                                                                     // Для тестов не рекомендуется устанавливать значение менее 8 сек
@@ -449,6 +487,7 @@ bool ESP_WIFI::sendError_check() {
       timeoutCounter = 0;
       buffOverCounter = 0;
       connectFailCounter = 0;
+      yandexOnly = false;
       return 1;
       //return 0;
       }
@@ -456,9 +495,22 @@ bool ESP_WIFI::sendError_check() {
   return 0;
 }
 
-bool ESP_WIFI::ping(const String &host, short timeout = 5000) {
-  String str = F("AT+PING=\"");
-  str += host;
-  str += F("\"");
+bool ESP_WIFI::ping(const String &host, short timeout = 5000, byte _act=0) {
+  String str;
+  switch(_act){
+  case 0:  
+    str = F("AT+PING=\"");
+    str += host;
+    str += F("\"");
+    break;
+  case 1:
+    str = F("AT+CIPSTART=\"TCP\",\"");
+    str += host;
+    str += F("\",80");
+    break;
+  case 2:
+    str = F("AT+CIPCLOSE");
+    break;
+  }
   return espSendCommand(str, STATE::OK , timeout);
 }

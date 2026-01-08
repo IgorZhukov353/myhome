@@ -1,17 +1,14 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  09-04-2025
+ Last changed:  06-01-2026
 */
-enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4};
-enum class ErrorType {NONE=0,HTTP_FAIL=1,TIMEOUT=20,OTHER=3,CONNECT=4,BUFFOVER=5};
+enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4, ALREADY = 5};
+enum class ErrorType {NONE=0,HTTP_FAIL=1,BUFFOVER=2,ALREADY_CONNECT=3,YANDEX_ONLY=4,TIMEOUT=20,OTHER=21,CONNECT=22};
 class ESP_WIFI {
-//protected:  
-  //String buffer;
-  
   
  public:
- char buffer[1800];
+  char buffer[1500];
  
   bool wifi_initialized = false;
   unsigned long lastWIFISended;
@@ -21,6 +18,7 @@ class ESP_WIFI {
   unsigned short timeoutCounter;
   unsigned short connectFailCounter;
   ErrorType lastErrorTypeId;
+  bool yandexOnly;
   
   short routerConnectErrorCounter;
   int routerRebootCount = 0;              // счетчик перезагрузок роутера
@@ -51,5 +49,5 @@ class ESP_WIFI {
   bool check_Wait_Internet();
   void closeConnect();
   bool sendError_check();
-  bool ping(const String &host, short timeout=5000);
+  bool ping(const String &host, short timeout=5000, byte _act=0);
 };
