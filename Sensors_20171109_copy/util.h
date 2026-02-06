@@ -7,6 +7,7 @@ void trace_c(const char *c);
 void trace_s(const String &s);
 void trace_end();
 String getCurrentDate(byte noYear = 1);
+void wdt_delay(int t);
 #ifndef __util_h__
 extern bool traceInit;   // признак инициализации трассировки
 extern short ramMemory;

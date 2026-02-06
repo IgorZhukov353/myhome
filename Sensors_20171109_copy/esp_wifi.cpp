@@ -137,10 +137,12 @@ bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
 bool ESP_WIFI::espSerialSetup() {
 bool r;
 esp_power_switch(true);
-delay(200);
+//delay(200);
+wdt_delay(200); // 6-02-2025 !watchdog!
 
 ESP_Serial.begin(115200); // default baud rate for ESP8266
-delay(100);
+//delay(100);
+wdt_delay(100); // 6-02-2025 !watchdog!
 
 r = espSendCommand(F("AT"), STATE::OK , 5000 );
 //AT+RST
@@ -239,6 +241,8 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
     if(recived)
       break;
     tnow = millis();
+
+    wdt_reset(); // 6-02-2025 !watchdog!
   }
   
   while (ESP_Serial.available()) {
@@ -391,7 +395,8 @@ bool ESP_WIFI::check_Wait_Internet() {
    unsigned long tstart, tnow, timeout = 1000L * 60 * 2; // izh 28-10-2018 таймаут 2 мин или до появления пинга
    tnow = tstart = millis();
    while(tnow < tstart + timeout ){
-    delay(10000);
+    //delay(10000);
+    wdt_delay(10000); // 6-02-2025 !watchdog!
     res = ping(HOST_IP_STR, 15000);  // попытка пингануть свой сервер
     if (res) {
       break;
@@ -411,10 +416,11 @@ bool ESP_WIFI::check_Wait_Internet() {
 void ESP_WIFI::closeConnect() {
   if(wifi_initialized){
     espSendCommand(F("AT+CWQAP"), STATE::OK, 15000 );
-    delay(1000);
+    //delay(1000);
+    wdt_delay(1000); // 6-02-2025 !watchdog!
     espSendCommand(F("AT+RST"), STATE::OK , 20000 );
-    delay(1000); 
-
+    //delay(1000); 
+    wdt_delay(1000); // 6-02-2025 !watchdog!
     wifi_initialized = false;
     esp_power_switch(false);
   }  
@@ -475,7 +481,7 @@ bool ESP_WIFI::sendError_check() {
     res = ping(F("192.168.0.1"), 5000); // попытка пингануть роутер
     if (!res && lastErrorTypeId == ErrorType::TIMEOUT && lastRouterReboot > lastWIFISended) {  // роутер не отвечает на ping, последняя ошибка была по таймауту и последнее успешное отправление было до перезагрузки роутера -> перегрузить МЕГУ
       wdt_enable(WDTO_8S);                                                                     // Для тестов не рекомендуется устанавливать значение менее 8 сек
-      delay(10000);
+      delay(10000); // перезагрузка
       return 0; // сюда уже не попадем
     }
     if(millis() - lastRouterReboot > (60000 * 60) ){ // если роутер отвечает на ping, то проблема с доступом в Инет (модем, кончились деньги и т.п.), инче проблема в роутере -> перегрузить роутер (но не чаще чем в 1 час)

@@ -1,13 +1,9 @@
 /*
   Igor Zhukov (c)
   Created:       01-11-2017
-<<<<<<< HEAD
-  Last changed:  04-01-2026	-++
-=======
-  Last changed:  30-06-2025	-++++--++
->>>>>>> 81ddefdae9b3c02e968dad6122f76f4f9b3722da
+  Last changed:  06-02-2026	-++
 */
-#define VERSION "Ver 1.186 of 04-01-2026 Igor Zhukov (C)"
+#define VERSION "Ver 1.187 of 06-02-2026 Igor Zhukov (C)"
 
 #include <avr/wdt.h>
 #include <math.h>
@@ -334,7 +330,8 @@ float readDallasTemp(DallasTemperature *d) {
     }
 
     //izh 25-07-2024 вызывает странную проблему dallasTemp[ii].begin();  // повторная инициализация, часто помогает
-    delay(50);
+    //delay(50);
+    wdt_delay(50); // 6-02-2025 !watchdog!
   }
   return ft;
 }
@@ -383,6 +380,8 @@ void temp_check() {
       prevHum[i] = h;
       prevTemp[i] = t;
     }
+    
+    wdt_reset(); // 6-02-2025 !watchdog!
   }
 }
 
@@ -693,14 +692,15 @@ void remoteRebootExecute(int act) {
   int pin = (act == 1) ? PIN24 : PIN30;  // 24 - роутер; 30 - камеры, регистратор
   trace(F("Rebooting..."));
   pinMode(pin, OUTPUT);
-
   digitalWrite(pin, LOW);
-
-  delay(1000 * 10);  // 10 сек
+  //delay(1000 * 10);  // 10 сек
+  wdt_delay(1000 * 10); // 6-02-2025 !watchdog!
   digitalWrite(pin, HIGH);
   pinMode(pin, INPUT);
-  if(act == 1)
-    delay(1000 * 60 * 2);  // если перегружаем роутер - ждем 2 мин 
+  if(act == 1){
+    //delay(1000 * 60 * 2);  // если перегружаем роутер - ждем 2 мин 
+    wdt_delay(1000 * 60 * 2); // 6-02-2025 !watchdog!
+  }
   trace(F("Rebooted."));
 }
 
@@ -828,6 +828,8 @@ void setup() {
     get_param();
   }
 
+  wdt_enable(WDTO_8S); // 6-02-2025 !watchdog!
+  
   //temp_check();
   //esp.closeConnect();
 }
@@ -943,4 +945,6 @@ void loop() {
     }
   } else
     watchDogOK_Sended2BD = false;
+
+  wdt_reset(); // 6-02-2025 !watchdog!
 }

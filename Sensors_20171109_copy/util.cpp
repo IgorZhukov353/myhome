@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include <RTClib.h>
+#include <avr/wdt.h>
 
 #define __util_h__ 
 #include "util.h"
@@ -99,3 +100,17 @@ String getCurrentDate(byte noYear = 1){
   }
   return dd;
 }
+
+//------------------------------------------------------------------------
+void wdt_delay(int t)
+{
+const int p = 100;  
+int i = t / p;
+int o = t % p;
+for(int ii = 0; ii < i; ii++){
+  delay(p);
+  wdt_reset();  
+  }
+if(o)
+  delay(o);
+}  
