@@ -104,6 +104,8 @@ String getCurrentDate(byte noYear = 1){
 //------------------------------------------------------------------------
 void wdt_delay(int t)
 {
+  delay(t);
+  return;
 const int p = 100;  
 int i = t / p;
 int o = t % p;

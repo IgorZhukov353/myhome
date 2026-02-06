@@ -12,7 +12,16 @@
 //--------------------------------------------------
 // внешние функции
 void responseProcessing(const String& resp){};
-void esp_power_switch(bool p){};
+void esp_power_switch(bool p){
+#define PIN29 29
+    if (p == true) {
+    pinMode(PIN29, OUTPUT);
+    digitalWrite(PIN29, LOW);
+  } else {
+    digitalWrite(PIN29, HIGH);
+    pinMode(PIN29, INPUT);
+  }
+};
 //--------------------------------------------------
 /* пример POST запроса
 POST /upd/send_info.php HTTP/1.1
@@ -58,13 +67,13 @@ bool ESP_WIFI::_send2ya() {
   	if (!checkInitialized()) {
     		return false;
   	}
- 	String token = F("y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv");
-	String HOST_IP_STR = F("cloud-api.yandex.net");
- 	String url   = F("https://cloud-api.yandex.net/v1/disk/resources?path=fortest%2Fdir1&fields=custom_properties");
+ 	//String token = F("y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv");
+	String HOST_IP_STR = F("www.google.com");//cloud-api.yandex.net");
+ 	//String url   = F("https://cloud-api.yandex.net/v1/disk/resources?path=fortest%2Fdir1&fields=custom_properties");
    	String cmd1;
     	cmd1 = F("AT+CIPSTART=\"SSL\",\"");
     	cmd1 += HOST_IP_STR;
-    	cmd1 += F("\",443");
+    	cmd1 += F("\",443,1200");
     	bool r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
 
 }
