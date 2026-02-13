@@ -1,0 +1,11 @@
+{  
+  "version": "2.0.0",  
+  "tasks": [
+    {
+      "label": "__Run local arduino-cli",
+      "type": "shell",
+      "command": "C:\\Projects\\HOME\\myhome-master\\__check_esp8266\\__check_esp8266\\build.cmd",
+      "problemMatcher": []
+    }
+  ]  
+}  

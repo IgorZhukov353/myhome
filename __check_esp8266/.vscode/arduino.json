@@ -1,0 +1,6 @@
+{
+    "board": "arduino:avr:mega",
+    "sketch": "__check_esp8266.ino",
+    "output": "build",
+    "otherLibrariesFolders": "C:\\projects\\home\\libraries"
+}
