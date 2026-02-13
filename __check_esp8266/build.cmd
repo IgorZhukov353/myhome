@@ -1,0 +1,1 @@
+C:\Users\zhukovigv\AppData\Local\Arduino15\arduino-cli.exe compile --fqbn arduino:avr:mega --build-path C:\Projects\HOME\myhome-master\__check_esp8266\build --libraries C:\Projects\HOME\library C:\Projects\HOME\myhome-master\__check_esp8266

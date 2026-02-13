@@ -36,6 +36,7 @@ class ESP_WIFI {
   bool send2site(const String& reqStr);
   //bool _send2site(const String& reqStr, const String& postBuf);
   bool _send2site(const String& reqStr, const char * postBuf);
+  bool _send();
   bool _send2ya();
   void addEvent2Buffer(short id, const String& msgText);
   void addTempHum2Buffer(short id, short temp, short hum);

@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  04-01-2026
+ Last changed:  13-02-2026
 */
 
 #include "Arduino.h"
@@ -50,6 +50,11 @@ const char *HOST_IP_STR = "81.90.182.128";
 
 #define ESP_Serial Serial1 // для МЕГИ
 
+#define MYHOME_HOST F("igorzhukov353.h1n.ru")
+#define MYHOME_HOST_IP F("81.90.182.128")
+#define YAN_DISK_HOST F("cloud-api.yandex.net")
+#define YAN_DISK_TOKEN F("y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv")
+
 //------------------------------------------------------------------------
 ESP_WIFI::ESP_WIFI() {
 wifi_initialized = false;
@@ -61,6 +66,73 @@ sendErrorCounter = 0;
 bool ESP_WIFI::send2site(const String &reqStr) {
   return _send2site(reqStr, NULL);
 }
+
+//------------------------------------------------------------------------
+// выполнить команду на удаленном сервере (через wi-fi)
+bool ESP_WIFI::_send() {
+  enum _SendPar:byte {_SSL=1,_MYHOME_HOST=2,_HTTP_PUT=4};
+  byte param = _SendPar::_SSL + _MYHOME_HOST;
+  const char *postBuf = "[{\"type\":\"S\",\"id\":1,\"v\":1},{\"type\":\"T\",\"id\":1,\"temp\":12,\"hum\":80}]";
+  const String reqStr;
+
+  short postBufLen = (postBuf) ? strlen(postBuf) : 0;  // + 6 ->str =[...]
+
+  bool r;
+  {
+  String cmd1;
+  cmd1 = F("AT+CIPSTART=\"");
+  cmd1 += (param & _SSL)? F("SSL"):F("TCP");
+  cmd1 += F("\",\"");
+  cmd1 += (param & _MYHOME_HOST)? MYHOME_HOST_IP : YAN_DISK_HOST;
+  cmd1 += F("\"");
+  if(param & _SSL)
+    cmd1 += F(",443,1200");
+  r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
+  if(lastErrorTypeId == ErrorType::ALREADY_CONNECT){
+    r = true;
+    }
+  }
+
+  if(r){
+    String request, request2;
+    short requestLength;
+    short maxlen = reqStr.length() + postBufLen + 200;
+    if (maxlen > 1024)
+      maxlen = 1024;
+    request.reserve(maxlen);
+
+    if (!postBuf) {
+      request = F("GET");
+    } else {
+      if(param & _HTTP_PUT)
+        request = F("PUT");
+      else
+        request = F("POST");
+    }
+    request += reqStr;
+    request += F(" HTTP/1.1\r\nHost: ");
+    request += (param & _MYHOME_HOST)? MYHOME_HOST : YAN_DISK_HOST;
+    request += F("\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
+    request += F("\r\nConnection: close\r\n");
+
+    if (!postBuf) {
+      requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+    } else {
+      request += F("Cache-Control: no-cache\r\n");
+      request += F("Authorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n");
+      request += F("Content-Length: "); 
+      request += postBufLen;
+      request += F("\r\n");
+//      if(param & _MYHOME_HOST)
+//        request += F("Content-Type: application/x-www-form-urlencoded\r\n");
+      request += F("\r\n");
+      request2 += F("\r\n");
+      requestLength = request.length() + (postBufLen - 6) + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+    }
+    r = espSendCommand( request, STATE::CLOSED, 15000, postBuf, request2);    // отослать запрос и получить ответ
+  }
+}
+
 //------------------------------------------------------------------------
 // выполнить команду на удаленном сервере (через wi-fi)
 bool ESP_WIFI::_send2ya() {
@@ -214,6 +286,8 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
     trace_s(F(")"));
     trace_end();  
   }
+  return true;
+
   short msglen = cmd.length();
   if(postBuf){
     msglen += strlen(postBuf);  

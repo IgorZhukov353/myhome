@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "author": "IgorZhukov353",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-mega", "id": "mega", "top": -37.8, "left": -253.2, "attrs": {} },
+    { "type": "wokwi-ds1307", "id": "rtc1", "top": 205.8, "left": 172.9, "attrs": {} },
+    {
+      "type": "wokwi-microsd-card",
+      "id": "sd1",
+      "top": 12.17,
+      "left": 438.67,
+      "rotate": 90,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": -278.1,
+      "left": -216.6,
+      "attrs": { "temperature": "8.1", "humidity": "75.5" }
+    },
+    { "type": "board-ds18b20", "id": "temp1", "top": -241.13, "left": -34.32, "attrs": {} },
+    { "type": "wokwi-led", "id": "led1", "top": -272.4, "left": 71, "attrs": { "color": "red" } },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": -176.2,
+      "left": 192,
+      "attrs": { "color": "red", "bounce": "1", "key": "1" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led2",
+      "top": -320.4,
+      "left": 445.4,
+      "attrs": { "color": "blue", "flip": "" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 52.8,
+      "left": 124.25,
+      "rotate": 90,
+      "attrs": { "value": "10000" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": -254.95,
+      "left": 478.6,
+      "rotate": 180,
+      "attrs": { "value": "1000" }
+    },
+    {
+      "type": "wokwi-pir-motion-sensor",
+      "id": "pir1",
+      "top": -293.6,
+      "left": 299.82,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": -109,
+      "left": 201.6,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": -233.8,
+      "left": 432,
+      "attrs": { "color": "blue" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn4",
+      "top": 159.8,
+      "left": 412.8,
+      "attrs": { "color": "yellow", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn5",
+      "top": 227,
+      "left": 412.8,
+      "attrs": { "color": "black", "xray": "1" }
+    }
+  ],
+  "connections": [
+    [ "rtc1:GND", "mega:GND.3", "black", [ "v-48", "h122.55" ] ],
+    [ "rtc1:5V", "mega:5V", "red", [ "h0" ] ],
+    [ "rtc1:SDA", "mega:20", "green", [ "h0" ] ],
+    [ "rtc1:SCL", "mega:21", "green", [ "h0" ] ],
+    [ "sd1:GND", "mega:GND.5", "black", [ "v0" ] ],
+    [ "sd1:VCC", "mega:5V.2", "red", [ "h64.6", "v173.8", "h96.14" ] ],
+    [ "sd1:DO", "mega:50", "green", [] ],
+    [ "sd1:SCK", "mega:52", "green", [ "v0" ] ],
+    [ "sd1:DI", "mega:51", "green", [ "v0" ] ],
+    [ "sd1:CS", "mega:53", "green", [ "v0" ] ],
+    [ "dht1:GND", "temp1:GND", "black", [ "v19.2", "h67.2", "v-48" ] ],
+    [ "dht1:GND", "mega:GND.1", "black", [ "v67.2", "h38.6" ] ],
+    [ "dht1:VCC", "temp1:VCC", "red", [ "v9.6", "h57.6", "v-19.2", "h134.4" ] ],
+    [ "temp1:VCC", "mega:5V.2", "red", [ "v67.2", "h127.4" ] ],
+    [ "temp1:DQ", "mega:12", "green", [ "v67.2", "h-96" ] ],
+    [ "dht1:SDA", "mega:2", "green", [ "v86.4", "h176.9" ] ],
+    [ "led1:C", "temp1:GND", "black", [ "v57.6", "h-114.8" ] ],
+    [ "led1:A", "mega:13", "green", [ "v134.4", "h-220.2" ] ],
+    [ "btn1:2.l", "mega:7", "green", [ "h0" ] ],
+    [ "r1:2", "mega:GND.4", "black", [ "v0" ] ],
+    [ "btn1:1.l", "temp1:GND", "black", [ "h0" ] ],
+    [ "pir1:VCC", "mega:5V.2", "red", [ "v153.6", "h-218.2" ] ],
+    [ "pir1:GND", "mega:GND.5", "black", [ "v355.2", "h-19.46" ] ],
+    [ "btn2:2.l", "mega:8", "green", [ "h-67.2", "v19.4", "h-192" ] ],
+    [ "btn2:1.l", "temp1:GND", "black", [ "h-67.2", "v-19.2", "h-182.4", "v-67.2" ] ],
+    [ "pir1:OUT", "mega:6", "green", [ "v144", "h-28.94" ] ],
+    [ "btn3:2.l", "mega:28", "green", [ "h-19.2", "v230.6" ] ],
+    [ "btn3:1.l", "temp1:VCC", "green", [ "h-19.2", "v-96", "h-384", "v124.8" ] ],
+    [ "r1:1", "mega:28", "green", [ "h0", "v-9.6" ] ],
+    [ "led2:C", "temp1:GND", "black", [ "v0", "h-28.4", "v-67.2", "h-489.6", "v124.8" ] ],
+    [ "led2:A", "r2:2", "green", [ "v0" ] ],
+    [ "r2:1", "btn3:2.r", "green", [ "v0" ] ],
+    [ "mega:48", "btn4:1.l", "green", [ "h151.4", "v77.95" ] ],
+    [ "mega:GND.4", "btn4:2.l", "black", [ "v29.75", "h132.2", "v38.2" ] ],
+    [ "mega:49", "btn5:1.l", "green", [ "v77.95", "h179.8" ] ],
+    [ "mega:GND.4", "btn5:2.l", "black", [ "v68.15", "h285.8", "v57.4" ] ]
+  ],
+  "dependencies": {}
+}

@@ -31,13 +31,12 @@ void loop() {
 
 void setup() 
 {
-    trace(F(VERSION));
-
     Wire.begin();
     RTC.begin();
 
-	esp.check_Wait_Internet();
-  esp._send2ya();
+    trace(F(VERSION));
+    esp._send();
+    trace(F("End setup."));
 }
 void loop() 
 {

@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build/__check_esp8266.ino.hex'
+elf = 'build/__check_esp8266.ino.elf'
