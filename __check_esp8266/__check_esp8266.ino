@@ -9,9 +9,10 @@
 
 #include "esp_wifi.h"
 #include "util.h"
+
 ESP_WIFI esp;  // wi-fi ESP266
 
-#define VERSION "Ver 1.187 of 06-02-2026 Igor Zhukov (C)"
+#define VERSION "Ver 1.187 of 15-02-2026 Igor Zhukov (C)"
 /*
 void setup() {
   espSerial.begin(COM_BAUD);
