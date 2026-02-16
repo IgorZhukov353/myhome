@@ -1,7 +1,8 @@
 {
-"configuration": "cpu=atmega2560", 
-   "board": "arduino:avr:mega",
+    "configuration": "cpu=atmega2560",
+    "board": "arduino:avr:mega",
     "sketch": "__check_esp8266.ino",
     "output": "build",
-    "otherLibrariesFolders": "C:\\projects\\home\\libraries"
+    "otherLibrariesFolders": "C:\\projects\\home\\libraries",
+    "port": "COM3"
 }
