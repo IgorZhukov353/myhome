@@ -1,7 +1,7 @@
 /* 
  Igor Zhukov (c)
  Created:       01-11-2017
- Last changed:  13-02-2026
+ Last changed:  17-02-2026
 */
 
 #include "Arduino.h"
@@ -53,6 +53,7 @@ const char *HOST_IP_STR = "81.90.182.128";
 #define MYHOME_HOST F("igorzhukov353.h1n.ru")
 #define MYHOME_HOST_IP F("81.90.182.128")
 #define OTHER_HOST F("cloud-api.yandex.net") //www.google.com");//
+//#define OTHER_HOST F("www.google.com");//
 #define OTHER_HOST_TOKEN F("y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv")
 
 //------------------------------------------------------------------------
@@ -92,7 +93,6 @@ bool ESP_WIFI::_send() {
   cmd1 += F("\"");
   if(param & _SSL){
     r = espSendCommand( F("AT+CIPSSLSIZE=4096"), STATE::OK, 5000 );
-
     cmd1 += F(",443");
     }
   else
@@ -120,44 +120,45 @@ bool ESP_WIFI::_send() {
         request = F("POST ");
     }
     request += reqStr;
-    request += F(" HTTP/1.1\r\nHost: ");
+    request += F(" HTTP/1.1\r\n");
+    request += F("Host: ");
     request += (param & _MYHOME_HOST)? MYHOME_HOST : OTHER_HOST;
     request += F("\r\n");
-    request += F("User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36\r\n"); // чтобы не блокировали за частые запросы 7-04-2025
+    request += F("User-Agent: ESP8266\r\n");
+    request += F("Connection: keep-alive\r\n");
     //request += F("Connection: close\r\n");
+    request += F("Accept: application/json\r\n");
+    request += F("Cache-Control: no-cache\r\n");
 
-    if (!postBuf) {
-      if(!(param & _MYHOME_HOST)){
+    if(!(param & _MYHOME_HOST)){  // yandex
+      request += F("Authorization: OAuth y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv\r\n");
+    }
 
-        request += F("Accept: application/json\r\nAccept-Encoding: gzip, deflate, br, zstd\r\nAccept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7\r\nConnection: keep-alive\r\n");
-        request += F("Authorization: OAuth y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv\r\n");
+    if (!postBufLen) { // GET
+      if(!(param & _MYHOME_HOST)){  // yandex
+        //request += F("Accept-Encoding: gzip, deflate, br, zstd\r\n");
+        request += F("Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7\r\n");
       }
-    } else {
+    } else {        // POST
+      request += F("Content-Type: application/json\r\n");
+      request += F("Content-Length: "); 
+      request += postBufLen;
+      request += F("\r\n");
+
       if(param & _MYHOME_HOST){
-        request += F("Cache-Control: no-cache\r\n");
         request += F("Authorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\n");
-        request += F("Content-Length: "); 
-        request += postBufLen;
-        request += F("\r\n");
-        request += F("Content-Type: application/json\r\n");
-      }
-      else {
-        request += F("Accept: application/json\r\n");
-        request += F("Authorization: OAuth y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv\r\n");
       }
 
       request += F("\r\n"); // перед postBuf
-      //request = F("GET /images/branding/googlelogo/2x/googlelogo_color_120x44dp.png HTTP/1.0\r\nHost: www.google.com\r\nUser-Agent: ESP8266\r\nAccept: image/png\r\nConnection: keep-alive\r\n\r\n");
-      
     }
     {
+     // request = F("GET /images/branding/googlelogo/2x/googlelogo_color_120x44dp.png HTTP/1.0\r\nHost: www.google.com\r\nUser-Agent: ESP8266\r\nAccept: image/png\r\nConnection: keep-alive\r\n\r\n");
       requestLength = request.length() + postBufLen + 2; // add 2 because \r\n will be appended by Serial.println().
       String cmd2 = F("AT+CIPSEND=");
       cmd2 += requestLength;
       r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
     }
-//delay(500);
 
     r = espSendCommand( request, STATE::CLOSED, 10000, postBuf);    // отослать запрос и получить ответ
   }
@@ -316,7 +317,7 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
     trace_s(F(")"));
     trace_end();  
   }
- // return true;
+  return true;
 
   short msglen = cmd.length();
   if(postBuf){
