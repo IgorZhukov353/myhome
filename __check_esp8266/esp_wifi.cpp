@@ -52,7 +52,8 @@ const char *HOST_IP_STR = "81.90.182.128";
 
 #define MYHOME_HOST F("igorzhukov353.h1n.ru")
 #define MYHOME_HOST_IP F("81.90.182.128")
-#define OTHER_HOST F("cloud-api.yandex.net") //www.google.com");//
+//#define OTHER_HOST F("cloud-api.yandex.net") //www.google.com");//
+#define OTHER_HOST F("uploader20vla.disk.yandex.net");
 //#define OTHER_HOST F("www.google.com");//
 #define OTHER_HOST_TOKEN F("y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv")
 
@@ -71,11 +72,16 @@ bool ESP_WIFI::send2site(const String &reqStr) {
 //------------------------------------------------------------------------
 // выполнить команду на удаленном сервере (через wi-fi)
 bool ESP_WIFI::_send() {
-  enum _SendPar:byte {_SSL=1,_MYHOME_HOST=2,_HTTP_PUT=4};
-  byte param = _SSL; // + _MYHOME_HOST; //
-  const char *postBuf = nullptr; //"[{\"type\":\"S\",\"id\":1,\"v\":1},{\"type\":\"T\",\"id\":1,\"temp\":12,\"hum\":80}]";
-  
-  const String reqStr = F("/v1/disk/resources?path=fortest%2Fdir1&fields=custom_properties"); // /get_date.php");//
+  enum _SendPar:byte {_SSL=1,_MYHOME_HOST=2,_HTTP_PUT=4,_HTTP_PATCH=8};
+  //byte param = _MYHOME_HOST; // _SSL + 
+  byte param = _SSL + _HTTP_PUT; // + _HTTP_PATCH; // _SSL + 
+  const char *postBuf ="{\"custom_properties\":{\"yandexonly\":1,\"start_date\":\"2026-02-20 12:00\",\"end_date\":\"\"}}";// nullptr; //"[{\"type\":\"S\",\"id\":1,\"v\":1},{\"type\":\"T\",\"id\":1,\"temp\":12,\"hum\":80}]";
+  //const char *postBuf = nullptr;
+
+  //const String reqStr = F("/v1/disk/resources?path=fortest%2Fdir1&fields=custom_properties"); // /get_date.php");//
+  //const String reqStr = F("/v1/disk/resources/upload?path=fortest%2Fdir1%2Ffile&fields=custom_properties");
+  const String reqStr = F("/upload-target/20260220T193056.300.utd.5bfpk43qt4rxdbyk40q704q1e-k20vla.21650");
+  //const String reqStr = F("/get_date.php");//
 
   short postBufLen = (postBuf) ? strlen(postBuf) : 0;  //
 
@@ -117,6 +123,9 @@ bool ESP_WIFI::_send() {
       if(param & _HTTP_PUT)
         request = F("PUT ");
       else
+        if(param & _HTTP_PATCH)
+          request = F("PATCH ");
+      else
         request = F("POST ");
     }
     request += reqStr;
@@ -125,10 +134,10 @@ bool ESP_WIFI::_send() {
     request += (param & _MYHOME_HOST)? MYHOME_HOST : OTHER_HOST;
     request += F("\r\n");
     request += F("User-Agent: ESP8266\r\n");
-    request += F("Connection: keep-alive\r\n");
-    //request += F("Connection: close\r\n");
-    request += F("Accept: application/json\r\n");
-    request += F("Cache-Control: no-cache\r\n");
+    //request += F("Connection: keep-alive\r\n");
+    request += F("Connection: close\r\n");
+    //request += F("Accept: application/json\r\n");
+    //request += F("Cache-Control: no-cache\r\n");
 
     if(!(param & _MYHOME_HOST)){  // yandex
       request += F("Authorization: OAuth y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv\r\n");
@@ -137,10 +146,10 @@ bool ESP_WIFI::_send() {
     if (!postBufLen) { // GET
       if(!(param & _MYHOME_HOST)){  // yandex
         //request += F("Accept-Encoding: gzip, deflate, br, zstd\r\n");
-        request += F("Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7\r\n");
+        //request += F("Accept-Language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7\r\n");
       }
     } else {        // POST
-      request += F("Content-Type: application/json\r\n");
+      //request += F("Content-Type: application/json\r\n");
       request += F("Content-Length: "); 
       request += postBufLen;
       request += F("\r\n");
@@ -159,8 +168,24 @@ bool ESP_WIFI::_send() {
       r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
       bytesSended += requestLength;
     }
-
-    r = espSendCommand( request, STATE::CLOSED, 10000, postBuf);    // отослать запрос и получить ответ
+  //delay(1000);
+  //  ESP_Serial.println(request);
+ 
+  // long tstart, timeout = 5000;  
+  // long tnow = tstart = millis();
+  
+  // while ( tnow <= tstart + timeout ) {
+  //   while (ESP_Serial.available()) {
+  //    char c = ESP_Serial.read();
+  //    Serial.write(c);
+  //   }
+  //   tnow = millis();
+  // }  
+    r = espSendCommand( request, STATE::CLOSED, 5000, postBuf);    // отослать запрос и получить ответ
+    
+    //Serial.println();
+    
+    //r = espSendCommand( F("AT+CIPCLOSE"), STATE::OK, 5000 );
   }
 }
 
@@ -270,6 +295,11 @@ esp_power_switch(true);
 wdt_delay(200); // 6-02-2025 !watchdog!
 
 ESP_Serial.begin(115200); // default baud rate for ESP8266
+//r = espSendCommand(F("AT+UART?"), STATE::OK , 5000 );
+
+//ESP_Serial.begin(250000); // default baud rate for ESP8266
+//r = espSendCommand(F("AT+UART=250000,8,1,0,0"), STATE::OK , 5000 );
+
 //delay(100);
 wdt_delay(100); // 6-02-2025 !watchdog!
 
@@ -284,13 +314,15 @@ r = espSendCommand( F("AT+CWMODE=1"), STATE::OK, 5000 );
   str += F("\",\"");
   str += WPASS;
   str += F("\"");
-  r = espSendCommand(str, STATE::OK, 20000);  
+  //r = espSendCommand(str, STATE::OK, 20000);  
 }
 if(!r){
   routerConnectErrorCounter++; 
   } else {
   routerConnectErrorCounter = 0;
   r = espSendCommand( F("AT+CIFSR"), STATE::OK, 5000 );
+  //  r = espSendCommand(F("AT+UART=250000,8,1,0,0"), STATE::OK , 5000 );
+  
 }
 return r;
 }
@@ -298,7 +330,7 @@ return r;
 //------------------------------------------------------------------------
 #define BUF_SIZE 10
 #define STATE_STR_MAX 6
-#define RESPONSE_LEN_MAX 512
+#define RESPONSE_LEN_MAX 2048
 static const char *state_str[STATE_STR_MAX] = {"OK", "ERROR", "HTTP/1.1", "200 OK", "CLOSED", "ALREADY"};
 static const byte state_str_len[STATE_STR_MAX] = {2, 5, 8, 6, 6, 7};
 
@@ -317,7 +349,7 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
     trace_s(F(")"));
     trace_end();  
   }
-  return true;
+  //return true;
 
   short msglen = cmd.length();
   if(postBuf){
@@ -328,7 +360,8 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
     ESP_Serial.println(cmd2);
   } else
     ESP_Serial.println(cmd);
-    
+  ESP_Serial.flush();
+  //delay(100);  
   if(maxSendedMSG < msglen)
     maxSendedMSG = msglen;
     
@@ -379,6 +412,7 @@ bool ESP_WIFI::espSendCommand(const String &cmd, const STATE goodResponse, const
   while (ESP_Serial.available()) {
     c = ESP_Serial.read();
     currResponseLen++;
+    response += c;
     if(currResponseLen < responseLenMax)
       response += c;
     else{
