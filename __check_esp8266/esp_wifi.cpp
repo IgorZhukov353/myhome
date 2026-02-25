@@ -4,14 +4,22 @@
  Last changed:  17-02-2026
 */
 
+#define __espwifi_h__ 
+
 #include "Arduino.h"
 #include <avr/wdt.h>
 #include "util.h"
 #include "esp_wifi.h"
 
+ESP_WIFI esp;  // wi-fi ESP266
+
 //--------------------------------------------------
 // внешние функции
-void responseProcessing(const String& resp){};
+void responseProcessing(const String& resp){
+  strcpy(esp.buffer,resp.c_str());
+  //trace(esp.buffer);
+}
+
 void esp_power_switch(bool p){
 #define PIN29 29
     if (p == true) {
@@ -23,37 +31,15 @@ void esp_power_switch(bool p){
   }
 };
 //--------------------------------------------------
-/* пример POST запроса
-POST /upd/send_info.php HTTP/1.1
-Host: f0195241.xsph.ru
-Content-Type: application/x-www-form-urlencoded
-Authorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==
-
-str=[{"type":"S","id":1,"v":1},{"type":"T","id":1,"temp":12,"hum":80},{"type":"E","text":"hello, world!"},{"type":"E","id":6,"text":"test 6"}]
-
-*/     
-  
 const String WSSID = "TP-Link_3DA0";    // Нахим
-//const String WSSID = "TP-LINK_FA82EC";    // Дом
-//const String WSSID = "Keenetic-7832";
-//const String WSSID_PROG = "WIFI353";    // программный WIFI на mini-pc
 const String WPASS  = "tgbvgy789";
-//const String HOST_STR = "igorzhukov353.000webhostapp.com";
-//const String HOST_STR = "24683.databor.pw";
-//const String HOST_STR = "z916629e.beget.tech"; // 16-03-2018 очередной бесплатный хостинг
-//const String HOST_STR = "santalov.ru";
-//const String HOST_STR = "f0195241.xsph.ru";
 const char *HOST_STR = "igorzhukov353.h1n.ru"; 
 const char *HOST_IP_STR = "81.90.182.128"; 
-//const char *HOST_IP_STR = "igorzhukov353.h1n.ru";
-
-
 #define ESP_Serial Serial1 // для МЕГИ
 
 #define MYHOME_HOST F("igorzhukov353.h1n.ru")
 #define MYHOME_HOST_IP F("81.90.182.128")
-//#define OTHER_HOST F("cloud-api.yandex.net") //www.google.com");//
-#define OTHER_HOST F("uploader20vla.disk.yandex.net");
+#define OTHER_HOST F("cloud-api.yandex.net") //www.google.com");//
 //#define OTHER_HOST F("www.google.com");//
 #define OTHER_HOST_TOKEN F("y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv")
 
@@ -69,10 +55,127 @@ bool ESP_WIFI::send2site(const String &reqStr) {
   return _send2site(reqStr, NULL);
 }
 
+void getHostUrl(const String & s, String * host, String * url)
+{
+int i1 = s.indexOf(F("uploader"));
+  if (i1 >= 0) {
+    int i2 = s.indexOf(F(":443"), i1);
+    if (i2 >= 0) {
+      *host = s.substring(i1, i2);
+    }
+    i2 = s.indexOf(F("/upload-target"), i1);
+    if (i2 >= 0) {
+      if (host->length() == 0) {
+        *host = s.substring(i1, i2);
+      }
+      i1 = s.indexOf(F("\""), i2);
+      if (i1 >= 0) {
+        *url = s.substring(i2, i1);
+      }
+    }
+
+    // Serial.println(*host);
+    // Serial.println(*url);
+  }
+}
+//------------------------------------------------------------------------
+// выполнить команду на удаленном сервере (через wi-fi)
+bool ESP_WIFI::_send2ya() {
+  bool r = _send2site(_SSL, F("GET"), F("cloud-api.yandex.net"), F("/v1/disk/resources/upload?path=fortest%2Fdir1%2Ffile2.txt&fields=custom_properties"), F("OAuth y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv"));
+  if( !r) return false;
+
+  String host;
+  String url;
+  getHostUrl(esp.buffer, &host, &url);
+  trace("host="+host);
+  trace("url="+url);
+  //host = "https://" + host;
+  //delay(1000);
+  r = _send2site(0, F("PUT"), host, url, F("OAuth y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv"), "[{\"type\":\"S\",\"id\":1,\"v\":1},{\"type\":\"T\",\"id\":1,\"temp\":12,\"hum\":80}]");
+}
+
+//------------------------------------------------------------------------
+// выполнить команду на удаленном сервере (через wi-fi)
+bool ESP_WIFI::_send2site(const byte opt, const String& metod, const String& host, const String& reqStr, const String& authStr, const char * postBuf=nullptr){
+ if (!checkInitialized()) {
+    		return false;
+  	}
+
+  bool r;
+  
+  {
+  String cmd1;
+  cmd1 = F("AT+CIPSTART=\"");
+  cmd1 += (opt & _SSL)? F("SSL"):F("TCP");
+  cmd1 += F("\",\"");
+  cmd1 += (opt & _MYHOME_HOST)? MYHOME_HOST_IP : host;
+  cmd1 += F("\"");
+  if(opt & _SSL){
+    r = espSendCommand( F("AT+CIPSSLSIZE=4096"), STATE::OK, 5000 );
+    cmd1 += F(",443,1200");
+    }
+  else
+    cmd1 += F(",80");  
+  r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
+  if(lastErrorTypeId == ErrorType::ALREADY_CONNECT){
+    r = true;
+    }
+  }
+
+  if(r){
+    short postBufLen = (postBuf) ? strlen(postBuf) : 0;  //
+
+    String request;
+    short requestLength;
+    short maxlen = reqStr.length() + postBufLen + 200;
+    if (maxlen > 1024)
+      maxlen = 1024;
+    request.reserve(maxlen);
+
+    request = metod;
+    request += F(" ");
+    request += reqStr;
+    request += F(" HTTP/1.1\r\n");
+    request += F("Host: ");
+    request += (opt & _MYHOME_HOST)? MYHOME_HOST : host;
+    request += F("\r\n");
+    request += F("User-Agent: ESP8266\r\n");
+    //request += F("Connection: keep-alive\r\n");
+    request += F("Connection: close\r\n");
+    //request += F("Accept: application/json\r\n");
+    request += F("Cache-Control: no-cache\r\n");
+    if(authStr.length() > 0){
+         request += F("Authorization: ");
+         request += authStr;
+         request += F("\r\n");
+    }
+
+    if (postBufLen) {
+      //request += F("Content-Type: application/json\r\n");
+      request += F("Content-Length: "); 
+      request += postBufLen;
+      request += F("\r\n");
+      request += F("\r\n"); // перед postBuf
+    }
+
+    {
+      requestLength = request.length() + postBufLen + 2; // add 2 because \r\n will be appended by Serial.println().
+      String cmd2 = F("AT+CIPSEND=");
+      cmd2 += requestLength;
+      r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
+      bytesSended += requestLength;
+    }
+    r = espSendCommand( request, STATE::CLOSED, 5000, postBuf);    // отослать запрос и получить ответ
+
+    espSendCommand( F("AT+CIPCLOSE"), STATE::OK, 5000 );
+  }
+  return r;
+}
+
 //------------------------------------------------------------------------
 // выполнить команду на удаленном сервере (через wi-fi)
 bool ESP_WIFI::_send() {
-  enum _SendPar:byte {_SSL=1,_MYHOME_HOST=2,_HTTP_PUT=4,_HTTP_PATCH=8};
+  
   //byte param = _MYHOME_HOST; // _SSL + 
   byte param = _SSL + _HTTP_PUT; // + _HTTP_PATCH; // _SSL + 
   const char *postBuf ="{\"custom_properties\":{\"yandexonly\":1,\"start_date\":\"2026-02-20 12:00\",\"end_date\":\"\"}}";// nullptr; //"[{\"type\":\"S\",\"id\":1,\"v\":1},{\"type\":\"T\",\"id\":1,\"temp\":12,\"hum\":80}]";
@@ -189,103 +292,86 @@ bool ESP_WIFI::_send() {
   }
 }
 
-//------------------------------------------------------------------------
-// выполнить команду на удаленном сервере (через wi-fi)
-bool ESP_WIFI::_send2ya() {
-  	if (!checkInitialized()) {
-    		return false;
-  	}
- 	//String token = F("y0__xCUvKUJGJSePSCz26qaFjDmy9b-B4i8Bo9O74ZhdYVkUc5SMnESwVgv");
-	String HOST_IP_STR = F("www.google.com");//cloud-api.yandex.net");
- 	//String url   = F("https://cloud-api.yandex.net/v1/disk/resources?path=fortest%2Fdir1&fields=custom_properties");
-   	String cmd1;
-    	cmd1 = F("AT+CIPSTART=\"SSL\",\"");
-    	cmd1 += HOST_IP_STR;
-    	cmd1 += F("\",443,1200");
-    	bool r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
+// //------------------------------------------------------------------------
+// // выполнить команду на удаленном сервере (через wi-fi)
+// bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
+//   if (!checkInitialized()) {
+//     return false;
+//   }
+//   if(yandexOnly){
+//     if(ping(HOST_IP_STR, 15000)) // попытка пингануть свой сервер
+//       yandexOnly = false;
+//     else
+//       return false;
+//   }
+//   short postBufLen = (postBuf) ? strlen(postBuf) + 6 : 0;  // + 6 ->str =[...]
+//   bool r;
+//   {
+//     String cmd1;
+//     cmd1 = F("AT+CIPSTART=\"TCP\",\"");
+//     cmd1 += HOST_IP_STR;
+//     cmd1 += F("\",80");
+//     r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
+//     if(lastErrorTypeId == ErrorType::ALREADY_CONNECT){
+//       r = 1;
+//     }
+//   }
+//   if (r) {  // соединение установлено
+//     String request, request2;
+//     short requestLength;
+//     short maxlen = reqStr.length() + postBufLen + 200;
+//     if (maxlen > 1024)
+//       maxlen = 1024;
+//     request.reserve(maxlen);
 
-}
-
-//------------------------------------------------------------------------
-// выполнить команду на удаленном сервере (через wi-fi)
-bool ESP_WIFI::_send2site(const String &reqStr, const char *postBuf) {
-  if (!checkInitialized()) {
-    return false;
-  }
-  if(yandexOnly){
-    if(ping(HOST_IP_STR, 15000)) // попытка пингануть свой сервер
-      yandexOnly = false;
-    else
-      return false;
-  }
-  short postBufLen = (postBuf) ? strlen(postBuf) + 6 : 0;  // + 6 ->str =[...]
-  bool r;
-  {
-    String cmd1;
-    cmd1 = F("AT+CIPSTART=\"TCP\",\"");
-    cmd1 += HOST_IP_STR;
-    cmd1 += F("\",80");
-    r = espSendCommand( cmd1, STATE::OK, 15000 );   // установить соединение с хостом
-    if(lastErrorTypeId == ErrorType::ALREADY_CONNECT){
-      r = 1;
-    }
-  }
-  if (r) {  // соединение установлено
-    String request, request2;
-    short requestLength;
-    short maxlen = reqStr.length() + postBufLen + 200;
-    if (maxlen > 1024)
-      maxlen = 1024;
-    request.reserve(maxlen);
-
-    if (!postBuf) {
-      request = F("GET /");
-    } else {
-      request = F("POST /");
-    }
-    request += reqStr;
-    request += F(" HTTP/1.1\r\nHost: ");
-    request += HOST_STR;
-    request += F("\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
-    request += F("\r\nConnection: close\r\n");
-    if (!postBuf) {
-      requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
-    } else {
-      request += F( "Content-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
-      request += postBufLen;
-      request += F("\r\n\r\n");
-      request += F("str=[");
-      request2 = F("]"); 
-      request2 += F("\r\n");
-      requestLength = request.length() + (postBufLen - 6) + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
-    }
+//     if (!postBuf) {
+//       request = F("GET /");
+//     } else {
+//       request = F("POST /");
+//     }
+//     request += reqStr;
+//     request += F(" HTTP/1.1\r\nHost: ");
+//     request += HOST_STR;
+//     request += F("\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"); // чтобы не блокировали за частые запросы 7-04-2025
+//     request += F("\r\nConnection: close\r\n");
+//     if (!postBuf) {
+//       requestLength = request.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+//     } else {
+//       request += F( "Content-Type: application/x-www-form-urlencoded\r\nAuthorization: Basic aWdvcmp1a292MzUzOlJEQ3RndjE5Ng==\r\nCache-Control: no-cache\r\nContent-Length: ");
+//       request += postBufLen;
+//       request += F("\r\n\r\n");
+//       request += F("str=[");
+//       request2 = F("]"); 
+//       request2 += F("\r\n");
+//       requestLength = request.length() + (postBufLen - 6) + request2.length() + 2; // add 2 because \r\n will be appended by Serial.println().
+//     }
     
-    {
-      String cmd2 = F("AT+CIPSEND=");
-      cmd2 += requestLength;
-      r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
-      bytesSended += requestLength;
-    }
-    r = espSendCommand( request, STATE::CLOSED, 15000, postBuf, request2);    // отослать запрос и получить ответ
-  }
-  else{
-    lastErrorTypeId = ErrorType::CONNECT;
-    connectFailCounter++;
-  }
+//     {
+//       String cmd2 = F("AT+CIPSEND=");
+//       cmd2 += requestLength;
+//       r = espSendCommand( cmd2, STATE::OK, 5000 );              // подготовить отсылку запроса - длина запроса
+//       bytesSended += requestLength;
+//     }
+//     r = espSendCommand( request, STATE::CLOSED, 15000, postBuf, request2);    // отослать запрос и получить ответ
+//   }
+//   else{
+//     lastErrorTypeId = ErrorType::CONNECT;
+//     connectFailCounter++;
+//   }
   
-  if (!r && lastErrorTypeId >= ErrorType::TIMEOUT) {
-    sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
-    sendErrorCounter_ForAll++;
-  } 
-  else {
-    sendErrorCounter = 0;
-    lastWIFISended = millis();  // время последней успешной отправки на сервер
-  }
+//   if (!r && lastErrorTypeId >= ErrorType::TIMEOUT) {
+//     sendErrorCounter++;   // счетчик ошибочных отправок (для определения проблемы доступа к интернету - возможно нужно перезагрузить роутер)
+//     sendErrorCounter_ForAll++;
+//   } 
+//   else {
+//     sendErrorCounter = 0;
+//     lastWIFISended = millis();  // время последней успешной отправки на сервер
+//   }
 
-  sendCounter_ForAll++;
+//   sendCounter_ForAll++;
 
-  return r;
-}
+//   return r;
+// }
 
 //------------------------------------------------------------------------
 bool ESP_WIFI::espSerialSetup() {

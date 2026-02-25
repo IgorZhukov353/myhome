@@ -10,8 +10,6 @@
 #include "esp_wifi.h"
 #include "util.h"
 
-ESP_WIFI esp;  // wi-fi ESP266
-
 #define VERSION "Ver 1.187 of 15-02-2026 Igor Zhukov (C)"
 /*
 void setup() {
@@ -29,14 +27,21 @@ void loop() {
 
 }
 */
-
+void check1(String *str1){
+  String *str = new String();
+  *str = "hello!";
+  trace("test=" + *str);
+  delete(str);
+}
 void setup() 
 {
     Wire.begin();
     RTC.begin();
 
     trace(F(VERSION));
-    esp._send();
+
+ //   check1(nullptr);
+    esp._send2ya();
     trace(F("End setup."));
 }
 void loop() 

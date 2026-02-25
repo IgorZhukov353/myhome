@@ -5,6 +5,8 @@
 */
 enum class STATE {OK = 0, ERR = 1, HTTP = 2, HTTP_OK = 3, CLOSED = 4, ALREADY = 5};
 enum class ErrorType {NONE=0,HTTP_FAIL=1,BUFFOVER=2,ALREADY_CONNECT=3,YANDEX_ONLY=4,TIMEOUT=20,OTHER=21,CONNECT=22};
+enum _SendPar:byte {_SSL=1,_MYHOME_HOST=2,_HTTP_PUT=4,_HTTP_PATCH=8};
+
 class ESP_WIFI {
   
  public:
@@ -34,7 +36,7 @@ class ESP_WIFI {
   //bool espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout);
   bool espSendCommand(const String& cmd, const STATE goodResponse, const unsigned long timeout, const char *postBuf=NULL, const String &cmd2="");
   bool send2site(const String& reqStr);
-  //bool _send2site(const String& reqStr, const String& postBuf);
+  bool _send2site(const byte opt, const String& metod, const String& host, const String& reqStr, const String& authStr,const char * postBuf=nullptr);
   bool _send2site(const String& reqStr, const char * postBuf);
   bool _send();
   bool _send2ya();
@@ -53,3 +55,7 @@ class ESP_WIFI {
   bool sendError_check();
   bool ping(const String &host, short timeout=5000, byte _act=0);
 };
+
+#ifndef __espwifi_h__
+extern ESP_WIFI esp;  // wi-fi ESP266
+#endif
